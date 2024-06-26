@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-class BaseUserAction(ABC):
+class AbstractAction(ABC):
     """
     A base class for user actions
     """
