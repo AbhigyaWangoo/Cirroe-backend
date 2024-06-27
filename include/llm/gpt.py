@@ -2,6 +2,7 @@ from openai import OpenAI
 import json
 from dotenv import load_dotenv
 import os
+from . import base
 from typing import List
 
 load_dotenv()
@@ -21,7 +22,7 @@ EMBEDDING_TO_DIMENSION = {
 }
 
 
-class GPTClient:
+class GPTClient(base.AbstractLLMClient):
     """A client module to call the GPT API"""
 
     def __init__(self) -> None:
