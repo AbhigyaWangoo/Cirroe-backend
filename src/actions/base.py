@@ -15,3 +15,9 @@ class AbstractAction(ABC):
         The standard entrypoint fn to trigger all actions.
         """
         pass
+
+    def clean_input(self, input: str) -> str:
+        """
+        helper fn to clean userinput to get a good input to template construction
+        """
+        return ""

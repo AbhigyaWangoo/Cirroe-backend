@@ -13,12 +13,6 @@ class ConstructCFStackAction(base.AbstractAction):
         self.gpt_client = GPTClient()
         super().__init__()
 
-    def _clean_input(self, input: str) -> str:
-        """
-        helper fn to clean userinput to get a good input to template construction
-        """
-        return ""
-
     def _extract_template(self, input: str) -> CloudFormationStack:
         """
         helper fn to extract a cf template from an input
@@ -45,14 +39,14 @@ class ConstructCFStackAction(base.AbstractAction):
         For construction a CF stack, this fn will input a 
         """
         # 1. Clean up input with a gpt call.
-        cleaned_input = self._clean_input(infra_description)
+        cleaned_input = self.clean_input(infra_description)
 
         # 2. Run a gpt call to extract a cf stack template
         cf_stack = self._extract_template(cleaned_input)
 
         # 3. Check cf stack template against original query.
         fixed_cf_stack = self._verify_stack(cf_stack, cleaned_input)
-        
+
         # 3.a persist cf stack in storage
 
         # 4. Return a string with the detailed info regarding the cf stack's functionality
