@@ -10,6 +10,7 @@ CONSTRUCT_CF_PROMPT = "extract_cf_template.txt"
 COALESCE_CONSTRUCTION_RESPONSE = "coalesce_response.txt"
 VERIFY_CONSTRUCTED_STACK = "verify_stack.txt"
 
+
 class ConstructCFStackAction(base.AbstractAction):
     """
     an action to construct a cf stack template
@@ -45,7 +46,10 @@ class ConstructCFStackAction(base.AbstractAction):
         """
 
         response = prompt_with_file(
-            VERIFY_CONSTRUCTED_STACK, prompt, self.gpt_client, is_json=True
+            BASE_PROMPT_PATH + VERIFY_CONSTRUCTED_STACK,
+            prompt,
+            self.gpt_client,
+            is_json=True,
         )
 
         return response
@@ -55,7 +59,7 @@ class ConstructCFStackAction(base.AbstractAction):
     ) -> str:
         """
         Respond to the user abstractly in one final response. Ask them whether we should deploy,
-        or whether they'd like to refine the usage. Additionlally, if we need any clarifications or 
+        or whether they'd like to refine the usage. Additionlally, if we need any clarifications or
         additional info, we need to include that in the response.
         """
 
@@ -68,7 +72,7 @@ class ConstructCFStackAction(base.AbstractAction):
         """
 
         response = prompt_with_file(
-            COALESCE_CONSTRUCTION_RESPONSE, prompt, self.gpt_client
+            BASE_PROMPT_PATH + COALESCE_CONSTRUCTION_RESPONSE, prompt, self.gpt_client
         )
 
         return response
@@ -79,14 +83,16 @@ class ConstructCFStackAction(base.AbstractAction):
         """
         # 1. Clean up input with a gpt call.
         cleaned_input = self.clean_input(infra_description)
+        print(cleaned_input)
 
         # 2. Run a gpt call to extract a cf stack template
         cf_stack = self._extract_template(cleaned_input)
+        print(cf_stack.template)
 
-        # 3. Check cf stack template against original query.
-        fixed_cf_stack = self._verify_stack(cf_stack, cleaned_input)
+        # 3. Check cf stack template against original query. Removing for now.
+        # fixed_cf_stack = self._verify_stack(cf_stack, cleaned_input)
 
         # 3.a TODO persist cf stack in storage (async ideally)
 
         # 4. Return a string with the detailed info regarding the cf stack's functionality
-        return self._coalesce_response(fixed_cf_stack, infra_description)
+        return self._coalesce_response(cf_stack, infra_description)

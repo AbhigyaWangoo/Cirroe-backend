@@ -1,4 +1,4 @@
-from llm.gpt import GPTClient
+from include.llm.gpt import GPTClient
 
 BASE_PROMPT_PATH = "include/prompts/"
 
