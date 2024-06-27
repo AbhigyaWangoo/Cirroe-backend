@@ -9,7 +9,12 @@ class DeployCFStackAction(base.AbstractAction):
     An action to deploy a cf stack to a user's account
     """
 
-    def __init__(self, user_stack: CloudFormationStack, user_aws_secret_key: str, user_aws_pub_access_key: str) -> None:
+    def __init__(
+        self,
+        user_stack: CloudFormationStack,
+        user_aws_secret_key: str,
+        user_aws_pub_access_key: str,
+    ) -> None:
         """
         Constructs a user deployment action
         """

@@ -4,6 +4,7 @@ from . import base
 from src.llm.gpt import GPTClient
 from src.model.stack import CloudFormationStack
 
+
 class ConstructCFStackAction(base.AbstractAction):
     """
     an action to construct a cf stack template
@@ -19,24 +20,25 @@ class ConstructCFStackAction(base.AbstractAction):
         """
         return CloudFormationStack({"": None}, "")
 
-    def _verify_stack(self, stack: CloudFormationStack, original_query: str) -> CloudFormationStack:
+    def _verify_stack(
+        self, stack: CloudFormationStack, original_query: str
+    ) -> CloudFormationStack:
         """
-        Verifies the provided stack is indeed handling the original query's needs or not. 
+        Verifies the provided stack is indeed handling the original query's needs or not.
         Also checks the stack against other examples to ensure the syntax is valid.
         """
         return CloudFormationStack({"": None}, "")
 
     def _coalesce_response(self, stack: CloudFormationStack, original_qyer: str) -> str:
         """
-        Respond to the user abstractly in one final response. Ask them whether we should deploy, 
+        Respond to the user abstractly in one final response. Ask them whether we should deploy,
         or whether they'd like to refine the usage.
         """
         return ""
 
-
     def trigger_action(self, infra_description: str) -> Any:
         """
-        For construction a CF stack, this fn will input a 
+        For construction a CF stack, this fn will input a
         """
         # 1. Clean up input with a gpt call.
         cleaned_input = self.clean_input(infra_description)

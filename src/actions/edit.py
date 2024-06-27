@@ -4,13 +4,15 @@ from . import base
 from src.llm.gpt import GPTClient
 from src.model.stack import CloudFormationStack
 
+
 class EditCFStackAction(base.AbstractAction):
     """
     An action to edit the provided stack
     """
+
     def __init__(self, stack_to_edit: CloudFormationStack) -> None:
         super().__init__()
-        self.stack_to_edit=stack_to_edit
+        self.stack_to_edit = stack_to_edit
 
     def determine_edit(self, user_input: str) -> CloudFormationStack:
         """
