@@ -6,7 +6,8 @@ from src.model.stack import CloudFormationStack
 
 from include.utils import prompt_with_file, BASE_PROMPT_PATH
 
-CONSTRUCT_CF_PROMPT="extract_cf_template.txt"
+CONSTRUCT_CF_PROMPT = "extract_cf_template.txt"
+
 
 class ConstructCFStackAction(base.AbstractAction):
     """
@@ -20,7 +21,9 @@ class ConstructCFStackAction(base.AbstractAction):
         """
         helper fn to extract a cf template from an input
         """
-        cf_json = prompt_with_file(BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT, input, self.gpt_client, is_json=True)
+        cf_json = prompt_with_file(
+            BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT, input, self.gpt_client, is_json=True
+        )
 
         return CloudFormationStack(cf_json, "")
 
@@ -33,7 +36,9 @@ class ConstructCFStackAction(base.AbstractAction):
         """
         return CloudFormationStack({"": None}, "")
 
-    def _coalesce_response(self, stack: CloudFormationStack, original_query: str) -> str:
+    def _coalesce_response(
+        self, stack: CloudFormationStack, original_query: str
+    ) -> str:
         """
         Respond to the user abstractly in one final response. Ask them whether we should deploy,
         or whether they'd like to refine the usage.

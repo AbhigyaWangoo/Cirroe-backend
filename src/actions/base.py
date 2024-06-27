@@ -6,6 +6,7 @@ from include.utils import prompt_with_file
 
 CLEAN_INPUT_PROMPT = "include/prompts/clean_input.txt"
 
+
 class AbstractAction(ABC):
     """
     A base class for user actions
