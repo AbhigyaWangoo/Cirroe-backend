@@ -11,7 +11,7 @@ if OPENAI_API_KEY is None:
     exit(1)
 
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
-DEFAULT_LLM = "gpt-4"
+DEFAULT_LLM = "gpt-4o"
 JSON_COMPATIBLE_LLM = "gpt-4-1106-preview"
 
 EMBEDDING_TO_DIMENSION = {

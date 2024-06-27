@@ -1,7 +1,6 @@
 from typing import Any
 from . import base
 
-from src.llm.gpt import GPTClient
 from src.model.stack import CloudFormationStack
 
 
