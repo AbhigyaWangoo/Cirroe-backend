@@ -17,6 +17,7 @@ class ConstructCFStackAction(base.AbstractAction):
     """
 
     def __init__(self) -> None:
+        self.stack = None
         super().__init__()
 
     def _extract_template(self, input: str) -> CloudFormationStack:
@@ -83,7 +84,7 @@ class ConstructCFStackAction(base.AbstractAction):
         """
         # 1. Clean up input with a gpt call.
         cleaned_input = self.clean_input(infra_description)
-        print(cleaned_input)
+        # print(cleaned_input)
 
         # 2. Run a gpt call to extract a cf stack template
         cf_stack = self._extract_template(cleaned_input)
@@ -91,6 +92,7 @@ class ConstructCFStackAction(base.AbstractAction):
 
         # 3. Check cf stack template against original query. Removing for now.
         # fixed_cf_stack = self._verify_stack(cf_stack, cleaned_input)
+        self.stack = cf_stack
 
         # 3.a TODO persist cf stack in storage (async ideally)
 

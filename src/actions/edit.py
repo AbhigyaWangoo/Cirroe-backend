@@ -27,9 +27,10 @@ class EditCFStackAction(base.AbstractAction):
             user_input,
             self.gpt_client,
             is_json=True,
+            temperature=0.35,
         )
 
-        return new_stack
+        return CloudFormationStack(new_stack, "")
 
     def describe_changes(
         self, s1: CloudFormationStack, s2: CloudFormationStack, original_prompt: str
@@ -39,10 +40,10 @@ class EditCFStackAction(base.AbstractAction):
         """
         diff_prompt = f"""
         Original infrastructure:
-        {json.loads(s1)}
+        {json.dumps(s1.template)}
         
         New infrastructure:
-        {json.loads(s2)}
+        {json.dumps(s2.template)}
         
         User's edit reques:
         {original_prompt}
