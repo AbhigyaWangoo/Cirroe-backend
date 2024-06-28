@@ -1,0 +1,3 @@
+You will be provided with an AWS CloudFormationStack Template, as well as a desired change in the architecture the 
+stack represents. Your job is to return a brand new JSON that represents the inputted stack ltered by the user's request.
+If it is unclear whether the stack should even be changed, then do not alter it.
