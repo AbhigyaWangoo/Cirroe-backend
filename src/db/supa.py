@@ -7,14 +7,23 @@ from enum import Enum, StrEnum
 
 # DB Column names
 CF_STACK_COL_NAME = "CirrusTemplate"
+STATE_COL_NAME = "State"
 ID = "id"
-
 
 class Operation(Enum):
     CREATE = 0
     READ = 1
     UPDATE = 2
     DELETE = 3
+
+class ChatSessionState(Enum):
+    NOT_QUERIED = 0
+    QUERIED_NOT_DEPLOYABLE = 1
+    QUERIED_AND_DEPLOYABLE = 2
+    DEPLOYED = 3
+    FAILED = 4
+    DEPLOYMENT_IN_PROGRESS = 5
+    DEPLOYMENT_SUCCEEDED = 6
 
 
 class Table(StrEnum):
@@ -70,11 +79,11 @@ class SupaClient:
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .select(CF_STACK_COL_NAME)
-            .eq("id", chat_session_id)
+            .eq(ID, chat_session_id)
             .execute()
         ).data[0]
 
-        return CloudFormationStack(response[CF_STACK_COL_NAME], "")
+        return CloudFormationStack(response[CF_STACK_COL_NAME])
 
     def edit_entire_cf_stack(
         self, chat_session_id: int, new_stack: CloudFormationStack
@@ -86,7 +95,23 @@ class SupaClient:
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .update({CF_STACK_COL_NAME: new_stack.template})
-            .eq("id", chat_session_id)
+            .eq(ID, chat_session_id)
+            .execute()
+        )
+
+        return response
+
+    def update_chat_session_state(
+        self, chat_session_id: int, new_state: ChatSessionState
+    ):
+        """
+        Alter the state of a chat session
+        """
+
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .update({STATE_COL_NAME: new_state.name})
+            .eq(ID, chat_session_id)
             .execute()
         )
 
