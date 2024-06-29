@@ -6,6 +6,5 @@ from typeguard import typechecked
 class CloudFormationStack:
     """A wrapper around a cf stack template"""
 
-    def __init__(self, template: Dict[str, Any], raw_data: str) -> None:
+    def __init__(self, template: Dict[str, Any]) -> None:
         self.template = template
-        self.raw_data = raw_data

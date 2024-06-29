@@ -28,7 +28,7 @@ class ConstructCFStackAction(base.AbstractAction):
             BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT, input, self.gpt_client, is_json=True
         )
 
-        return CloudFormationStack(cf_json, "")
+        return CloudFormationStack(cf_json)
 
     def _verify_stack(
         self, stack: CloudFormationStack, original_query: str

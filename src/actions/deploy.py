@@ -1,9 +1,11 @@
 from typing import Any
+import json
 import boto3
 from . import base
 
 from src.model.stack import CloudFormationStack
 
+# TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
 class DeployCFStackAction(base.AbstractAction):
     """
@@ -36,8 +38,8 @@ class DeployCFStackAction(base.AbstractAction):
         Deploys user's cf stack into their account
         """
 
-        stack_name = self.user_stack.template.get("StackName")
-        template_body = self.user_stack.raw_data
+        stack_name = input
+        template_body = json.dumps(self.user_stack.template)
         stack_exists = True
 
         try:
@@ -49,6 +51,8 @@ class DeployCFStackAction(base.AbstractAction):
         except self.cf_client.exceptions.ClientError as e:
             if "does not exist" in str(e):
                 stack_exists = False
+            else:
+                raise
 
         if stack_exists:
             # Update the stack

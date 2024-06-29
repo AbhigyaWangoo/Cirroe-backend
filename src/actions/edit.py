@@ -30,7 +30,7 @@ class EditCFStackAction(base.AbstractAction):
             temperature=0.35,
         )
 
-        return CloudFormationStack(new_stack, "")
+        return CloudFormationStack(new_stack)
 
     def describe_changes(
         self, s1: CloudFormationStack, s2: CloudFormationStack, original_prompt: str
