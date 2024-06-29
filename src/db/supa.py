@@ -24,6 +24,7 @@ class ChatSessionState(Enum):
     FAILED = 4
     DEPLOYMENT_IN_PROGRESS = 5
     DEPLOYMENT_SUCCEEDED = 6
+    QUERIED = 7
 
 
 class Table(StrEnum):
