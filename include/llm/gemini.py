@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-DEFAULT_LLM = "gemini-1.5-flash"
+DEFAULT_LLM = "gemini-1.5-pro"
 
 
 class GeminiClient(base.AbstractLLMClient):
@@ -18,8 +18,6 @@ class GeminiClient(base.AbstractLLMClient):
 
     def __init__(self) -> None:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
-        self.model = genai.GenerativeModel(DEFAULT_LLM)
 
     def generate_embeddings(self, sentence: str, embedding_model: str) -> List[float]:
         return super().generate_embeddings(sentence, embedding_model)
@@ -32,6 +30,14 @@ class GeminiClient(base.AbstractLLMClient):
         is_json: bool = False,
     ) -> str:
         """A simple wrapper to the gemini api"""
-        response = self.model.generate_content(prompt)
+        config = genai.types.GenerationConfig(
+            temperature=temperature
+        )
+
+        model = genai.GenerativeModel(
+            model_name=DEFAULT_LLM,
+            
+        )
+        response = model.generate_content(prompt)
 
         return response
