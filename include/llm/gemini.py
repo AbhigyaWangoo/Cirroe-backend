@@ -30,13 +30,10 @@ class GeminiClient(base.AbstractLLMClient):
         is_json: bool = False,
     ) -> str:
         """A simple wrapper to the gemini api"""
-        config = genai.types.GenerationConfig(
-            temperature=temperature
-        )
+        config = genai.types.GenerationConfig(temperature=temperature)
 
         model = genai.GenerativeModel(
             model_name=DEFAULT_LLM,
-            
         )
         response = model.generate_content(prompt)
 
