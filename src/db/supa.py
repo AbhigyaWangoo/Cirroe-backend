@@ -3,10 +3,11 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from supabase.client import ClientOptions
-from enum import Enum
+from enum import Enum, StrEnum
 
 # DB Column names
 CF_STACK_COL_NAME = "CirrusTemplate"
+ID = "id"
 
 
 class Operation(Enum):
@@ -16,10 +17,10 @@ class Operation(Enum):
     DELETE = 3
 
 
-class Table(Enum):
-    USERS = 0
-    CHAT_SESSIONS = 1
-    CHATS = 2
+class Table(StrEnum):
+    USERS = "Users"
+    CHAT_SESSIONS = "ChatSessions"
+    CHATS = "Chats"
 
 
 class SupaClient:
@@ -31,7 +32,7 @@ class SupaClient:
         load_dotenv()
 
         self.user_id = user_id
-        url: str = os.environ.get("SUPABASE_URI")
+        url: str = os.environ.get("SUPABASE_URL")
         key: str = os.environ.get("SUPABASE_API_KEY")
         self.supabase: Client = None
 
@@ -48,65 +49,45 @@ class SupaClient:
         except Exception as e:
             raise ConnectionError(f"Error: Couldn't connect to supabase db. {e}")
 
-    def perform_column_action(
-        self, table: Table, action: Operation, *columns, **edit_columns
-    ):
+    def upload_cf_stack(self, stack: CloudFormationStack):
         """
-        Given a table and an operation, performs the desired operation.
-
-        For deletes, you need to only have 2 column values. The column that you want to delete
-        from, and the desired value.
-
-        For updates, your edit columns need to have all the key value pairs of new column <-> value
-        pairs and your columns need to be 2 values, representing the <column> == <value> on the row
-        to update
+        Uploads a CF stack template to the correct chatsession
         """
 
-        if action == Operation.READ:
-            if edit_columns:  # indicates we have multiple columns to read by
-                keys = list(edit_columns.keys())
-                values = list(edit_columns.values())
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .insert({"UserId": self.user_id, CF_STACK_COL_NAME: stack.template})
+            .execute()
+        )
 
-                return (self.supabase.table(table).select(*keys).eq(*values).execute())[
-                    "data"
-                ]
-
-            return (
-                self.supabase.table(table)
-                .select(f"{','.join(columns)}")
-                .execute()["data"]
-            )
-        elif action == Operation.CREATE:
-            return self.supabase.table(table).insert(edit_columns).execute()["data"]
-        elif action == Operation.UPDATE:
-            return (
-                self.supabase.table(table)
-                .update(edit_columns)
-                .eq(columns)
-                .execute()["data"]
-            )
-        elif action == Operation.DELETE:
-            return self.supabase.table(table).delete().eq(columns).execute()["data"]
+        return response
 
     def get_cf_stack(self, chat_session_id: int) -> CloudFormationStack:
         """
         Given the chat session id, get the cf stack.
         """
 
-        response = self.perform_column_action(
-            Table.CHAT_SESSIONS,
-            Operation.READ,
-            edit_columns={
-                "id": chat_session_id,
-                CF_STACK_COL_NAME: f"ChatSessions.{CF_STACK_COL_NAME}",
-            },
-        )["data"]
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .select(CF_STACK_COL_NAME)
+            .eq("id", chat_session_id)
+            .execute()
+        ).data[0]
 
-        print(response)
-
-        return CloudFormationStack({"": None}, "")
+        return CloudFormationStack(response[CF_STACK_COL_NAME], "")
 
     def edit_entire_cf_stack(
         self, chat_session_id: int, new_stack: CloudFormationStack
     ):
-        pass
+        """
+        Alter an existing cf stack with the new one.
+        """
+
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .update({CF_STACK_COL_NAME: new_stack.template})
+            .eq("id", chat_session_id)
+            .execute()
+        )
+
+        return response

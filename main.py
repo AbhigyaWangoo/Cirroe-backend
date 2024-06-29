@@ -15,6 +15,10 @@
 # # print(f"TRGGER ACTION:\n\n{edit_action.trigger_action(q2)}")
 
 from src.db.supa import SupaClient
+from src.model.stack import CloudFormationStack
 
-client = SupaClient(1)
-print(client.get_cf_stack(1))
+client = SupaClient(3)
+
+stack = CloudFormationStack({"instance type": "c6.4xl"}, "")
+
+print(client.edit_entire_cf_stack(4, stack))

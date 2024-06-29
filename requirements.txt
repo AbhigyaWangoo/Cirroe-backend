@@ -2,3 +2,5 @@ google-generativeai
 openai
 pymongo
 supabase
+typeguard
+python-dotenv
