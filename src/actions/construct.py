@@ -80,7 +80,7 @@ class ConstructCFStackAction(base.AbstractAction):
 
     def trigger_action(self, infra_description: str) -> Any:
         """
-        For construction a CF stack, this fn will input a
+        For construction a CF stack, this fn will input a response, and create + update a stack in supabase.
         """
         # 1. Clean up input with a gpt call.
         cleaned_input = self.clean_input(infra_description)
