@@ -20,16 +20,21 @@ class ConstructCFStackAction(base.AbstractAction):
         self.stack = None
         super().__init__()
 
-    def _extract_template(self, input: str) -> CloudFormationStack:
+    def _extract_template(self, input: str, retries: int = 3) -> CloudFormationStack:
         """
         helper fn to extract a cf template from an input
         """
-        cf_json = prompt_with_file(
-            BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT,
-            input,
-            self.claude_client,
-            is_json=True,
-        )
+        try:
+            cf_json = prompt_with_file(
+                BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT,
+                input,
+                self.claude_client,
+                is_json=True,
+            )
+        except Exception as e:
+            print(f"Couldn't extract template because of {e}. Retrying...")
+
+            return self._extract_template(input, retries - 1)
 
         return CloudFormationStack(cf_json)
 

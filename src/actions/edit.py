@@ -19,17 +19,22 @@ class EditCFStackAction(base.AbstractAction):
         self.stack_to_edit = stack_to_edit
         self.new_stack = None
 
-    def determine_edit(self, user_input: str) -> CloudFormationStack:
+    def determine_edit(self, user_input: str, retries: int = 3) -> CloudFormationStack:
         """
         Alter the stack_to_edit with the provided user input, and return the new stack.
         """
-        new_stack = prompt_with_file(
-            BASE_PROMPT_PATH + EDIT_STACK_PROMPT,
-            user_input,
-            self.claude_client,
-            is_json=True,
-            temperature=0.35,
-        )
+
+        try:
+            new_stack = prompt_with_file(
+                BASE_PROMPT_PATH + EDIT_STACK_PROMPT,
+                user_input,
+                self.claude_client,
+                is_json=True,
+                temperature=0.35,
+            )
+        except Exception as e:
+            print(f"Couldn't parse due to {e}. Retrying...")
+            return self.determine_edit(user_input, retries - 1)
 
         return CloudFormationStack(new_stack)
 

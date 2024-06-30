@@ -2,6 +2,7 @@ from typing import List
 from . import base
 import os
 from dotenv import load_dotenv
+import json
 import anthropic
 
 load_dotenv()
@@ -26,7 +27,12 @@ class ClaudeClient(base.AbstractLLMClient):
         return super().generate_embeddings(sentence, embedding_model)
 
     def query(
-        self, prompt: str, sys_prompt: str, model: str = MODEL, temperature: int = 0.2
+        self,
+        prompt: str,
+        sys_prompt: str,
+        is_json: bool,
+        model: str = MODEL,
+        temperature: int = 0.2,
     ) -> str:
         """A simple wrapper to the claude api"""
 
@@ -37,6 +43,9 @@ class ClaudeClient(base.AbstractLLMClient):
             system=sys_prompt,
             messages=[{"role": "user", "content": prompt}],
         )
-        # max_tokens=1024,
 
-        return response.content[0].text
+        text = response.content[0].text
+        if is_json:
+            return json.loads(text)
+
+        return text

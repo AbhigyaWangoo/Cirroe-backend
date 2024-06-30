@@ -8,7 +8,14 @@ class AbstractLLMClient(ABC):
         super().__init__()
 
     @abstractmethod
-    def query(sys_prompt: str, prompt: str) -> str:
+    def query(
+        self,
+        prompt: str,
+        sys_prompt: str,
+        model: str,
+        is_json: bool,
+        temperature: int = 0.2,
+    ) -> str:
         pass
 
     @abstractmethod
