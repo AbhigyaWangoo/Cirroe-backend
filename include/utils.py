@@ -15,8 +15,8 @@ def prompt_with_file(
         sysprompt = fp.read()
         return client.query(prompt, sys_prompt=sysprompt, **extra_options)
 
+
 def stack_is_delpoyable(stack: CloudFormationStack) -> bool:
     """
     Should take the stack, and just return whether it can be deployed or not.
     """
-    

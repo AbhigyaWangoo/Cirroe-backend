@@ -3,12 +3,13 @@ from src.actions.construct import ConstructCFStackAction
 from src.actions.edit import EditCFStackAction
 from src.db.supa import SupaClient, ChatSessionState, ID
 
+
 def construction_wrapper(user_id: int, user_query: str) -> str:
     """
-    Constructs a stack based off user query. Persists stack in supabase and updates 
+    Constructs a stack based off user query. Persists stack in supabase and updates
     chat session state. Returns qualitative response for user.
 
-    todo Caches ChatSession stack in mem and disk for further use. 
+    todo Caches ChatSession stack in mem and disk for further use.
     Caches user supa client connection in mem.
     """
     action = ConstructCFStackAction()
@@ -20,7 +21,7 @@ def construction_wrapper(user_id: int, user_query: str) -> str:
         client = SupaClient(user_id)
         response = client.upload_cf_stack(stack)
 
-        chat_session_id=response.data[0][ID]
+        chat_session_id = response.data[0][ID]
         # TODO add cloudformation stack linter to see if
         # the stack is deployable, and update the state as such
         client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
@@ -30,13 +31,16 @@ def construction_wrapper(user_id: int, user_query: str) -> str:
         print(
             f"Failed to construct cf stack for user {user_id}. \nUser request: {user_query} \n\nError: {e}"
         )
-        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE)
+        client.update_chat_session_state(
+            chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
+        )
+
 
 def edit_wrapper(user_query: str, user_id: int, chat_session_id: str):
     """
-    Using the user query, and the cf stack retrieved from supabase with the chat 
+    Using the user query, and the cf stack retrieved from supabase with the chat
     session id, edits the cf stack and responds qualitativly to the user.
-    
+
     also, updates state and persists chat stack.
     """
 
@@ -53,7 +57,7 @@ def edit_wrapper(user_query: str, user_id: int, chat_session_id: str):
         new_stack = action.new_stack
         print(new_stack)
 
-        # 4. persist new stack in supa 
+        # 4. persist new stack in supa
         client.edit_entire_cf_stack(chat_session_id, new_stack)
         client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
 
@@ -62,11 +66,14 @@ def edit_wrapper(user_query: str, user_id: int, chat_session_id: str):
         print(
             f"Failed to edit cf stack for user {user_id}. \nUser request: {user_query} \n\nError: {e}"
         )
-        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE)
+        client.update_chat_session_state(
+            chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
+        )
+
 
 def query_wrapper(user_query: str, user_id: int, is_construction: bool):
     """
-    A wrapper around a Cirrus query. 
+    A wrapper around a Cirrus query.
     """
     # This fn will do the following:
     # 1. rcv a query from the user, the user's id, and a bool indicating whether this is a new chatsession or not

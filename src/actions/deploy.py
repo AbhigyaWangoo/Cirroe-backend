@@ -7,6 +7,7 @@ from src.model.stack import CloudFormationStack
 
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
+
 class DeployCFStackAction(base.AbstractAction):
     """
     An action to deploy a cf stack to a user's account

@@ -10,11 +10,13 @@ CF_STACK_COL_NAME = "CirrusTemplate"
 STATE_COL_NAME = "State"
 ID = "id"
 
+
 class Operation(Enum):
     CREATE = 0
     READ = 1
     UPDATE = 2
     DELETE = 3
+
 
 class ChatSessionState(Enum):
     NOT_QUERIED = 0
