@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-DEFAULT_LLM = "gemini-1.5-pro"
+DEFAULT_LLM = "gemini-1.5-flash"
 
 
 class GeminiClient(base.AbstractLLMClient):
@@ -26,14 +26,19 @@ class GeminiClient(base.AbstractLLMClient):
         self,
         prompt: str,
         temperature: int = 0.1,
-        sys_prompt: str = None,
+        sys_prompt: str = "",
         is_json: bool = False,
     ) -> str:
         """A simple wrapper to the gemini api"""
-        config = genai.types.GenerationConfig(temperature=temperature)
+
+        config = {"temperature": temperature}
+        if is_json:
+            config["response_mime_type"] = "application/json"
 
         model = genai.GenerativeModel(
             model_name=DEFAULT_LLM,
+            system_instruction=sys_prompt,
+            generation_config=config,
         )
         response = model.generate_content(prompt)
 
