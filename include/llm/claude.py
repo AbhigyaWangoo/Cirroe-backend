@@ -25,7 +25,9 @@ class ClaudeClient(base.AbstractLLMClient):
     def generate_embeddings(self, sentence: str, embedding_model: str) -> List[float]:
         return super().generate_embeddings(sentence, embedding_model)
 
-    def query(self, prompt: str, sys_prompt: str, model: str = MODEL, temperature: int = 0.2) -> str:
+    def query(
+        self, prompt: str, sys_prompt: str, model: str = MODEL, temperature: int = 0.2
+    ) -> str:
         """A simple wrapper to the claude api"""
 
         response = self._client.messages.create(
@@ -35,6 +37,6 @@ class ClaudeClient(base.AbstractLLMClient):
             system=sys_prompt,
             messages=[{"role": "user", "content": prompt}],
         )
-            # max_tokens=1024,
+        # max_tokens=1024,
 
         return response.content[0].text
