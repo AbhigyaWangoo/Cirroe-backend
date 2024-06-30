@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from include.llm.gpt import GPTClient
+from include.llm.claude import ClaudeClient
 from include.utils import prompt_with_file
 
 CLEAN_INPUT_PROMPT = "include/prompts/clean_input.txt"
@@ -14,6 +15,7 @@ class AbstractAction(ABC):
 
     def __init__(self) -> None:
         self.gpt_client = GPTClient()
+        self.claude_client = ClaudeClient()
         super().__init__()
 
     @abstractmethod

@@ -26,7 +26,7 @@ class EditCFStackAction(base.AbstractAction):
         new_stack = prompt_with_file(
             BASE_PROMPT_PATH + EDIT_STACK_PROMPT,
             user_input,
-            self.gpt_client,
+            self.claude_client,
             is_json=True,
             temperature=0.35,
         )

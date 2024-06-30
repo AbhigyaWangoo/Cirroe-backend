@@ -25,7 +25,7 @@ class ConstructCFStackAction(base.AbstractAction):
         helper fn to extract a cf template from an input
         """
         cf_json = prompt_with_file(
-            BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT, input, self.gpt_client, is_json=True
+            BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT, input, self.claude_client, is_json=True
         )
 
         return CloudFormationStack(cf_json)
