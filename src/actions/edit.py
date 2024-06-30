@@ -17,6 +17,7 @@ class EditCFStackAction(base.AbstractAction):
     def __init__(self, stack_to_edit: CloudFormationStack) -> None:
         super().__init__()
         self.stack_to_edit = stack_to_edit
+        self.new_stack = None
 
     def determine_edit(self, user_input: str) -> CloudFormationStack:
         """
@@ -68,6 +69,7 @@ class EditCFStackAction(base.AbstractAction):
         edited_stack = self.determine_edit(new_input)
 
         # 3. Persist new updated stack
+        self.new_stack = edited_stack
 
         # 4. Respond qualitatively to user
         return self.describe_changes(self.stack_to_edit, edited_stack, new_input)

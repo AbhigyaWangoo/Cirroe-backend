@@ -1,5 +1,6 @@
 from src.model.stack import CloudFormationStack
 from src.actions.construct import ConstructCFStackAction
+from src.actions.edit import EditCFStackAction
 from src.db.supa import SupaClient, ChatSessionState, ID
 
 def construction_wrapper(user_id: int, user_query: str) -> str:
@@ -15,8 +16,6 @@ def construction_wrapper(user_id: int, user_query: str) -> str:
     try:
         action_response = action.trigger_action(user_query)
         stack = action.stack
-        print(stack)
-        print(action_response)
 
         client = SupaClient(user_id)
         response = client.upload_cf_stack(stack)
@@ -30,6 +29,38 @@ def construction_wrapper(user_id: int, user_query: str) -> str:
     except Exception as e:
         print(
             f"Failed to construct cf stack for user {user_id}. \nUser request: {user_query} \n\nError: {e}"
+        )
+        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE)
+
+def edit_wrapper(user_query: str, user_id: int, chat_session_id: str):
+    """
+    Using the user query, and the cf stack retrieved from supabase with the chat 
+    session id, edits the cf stack and responds qualitativly to the user.
+    
+    also, updates state and persists chat stack.
+    """
+
+    try:
+        # 1. retrieve stack with chat session id
+        client = SupaClient(user_id)
+        stack = client.get_cf_stack(chat_session_id)
+
+        # 2. construct edit action
+        action = EditCFStackAction(stack)
+
+        # 3. trigger action
+        action_result = action.trigger_action(user_query)
+        new_stack = action.new_stack
+        print(new_stack)
+
+        # 4. persist new stack in supa 
+        client.edit_entire_cf_stack(chat_session_id, new_stack)
+        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
+
+        return action_result
+    except Exception as e:
+        print(
+            f"Failed to edit cf stack for user {user_id}. \nUser request: {user_query} \n\nError: {e}"
         )
         client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE)
 
