@@ -119,3 +119,19 @@ class SupaClient:
         )
 
         return response
+
+    def get_chat_session_state(
+        self, chat_session_id: int
+    ) -> ChatSessionState:
+        """
+        Get the state of a chat session
+        """
+
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .select(STATE_COL_NAME)
+            .eq(ID, chat_session_id)
+            .execute()
+        )
+
+        return ChatSessionState[response.data[0][STATE_COL_NAME]]
