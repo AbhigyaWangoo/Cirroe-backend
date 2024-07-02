@@ -1,10 +1,13 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 import json
 import boto3
 from . import base
 
 from src.model.stack import CloudFormationStack
 from src.db.supa import SupaClient, ChatSessionState
+
+from include.utils import prompt_with_file, BASE_PROMPT_PATH
+from enum import Enum
 
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
@@ -14,6 +17,17 @@ from src.db.supa import SupaClient, ChatSessionState
 #       If passing, attempt to deploy
 #           If deployment fails, see if there is info needed from user or not. If yes, request from user. if no, break gracefully.
 
+REQUEST_DEPLOYMENT_INFO_PROMPT="request_deployment_info.txt"
+
+class DeployableState(Enum):
+    """
+    Represents whether or not the stack is ready for deployment
+    """
+    DEPLOYABLE = 0
+    INACCURACTE_INFORMATION = 1
+    MISSING_INFORMATION = 2
+    INVALID_FORMAT = 3
+    OTHER = 4
 
 class DeployCFStackAction(base.AbstractAction):
     """
@@ -45,11 +59,51 @@ class DeployCFStackAction(base.AbstractAction):
         self.chat_session_id = chat_session_id
         super().__init__()
 
-    def verify_stack_deployable(self) -> bool:
+    def verify_stack_deployable(self) -> DeployableState:
         """
         A binary classifier that returns whether the stack can be deployed or not.
         """
-        return True 
+        # If the stack has been deployed before, check logs to see for failures
+
+        # If not, check cf stack with gpt call to check if it has issues. If no issues, return true.
+        return True
+
+    def get_stack_logs(self, stack_name: str) -> List[str]:
+        """
+        Get logs for a cf stack deployment. Returns a list of log messages.
+        """
+
+        # Get stack events
+        response = self.cf_client.describe_stack_events(StackName=stack_name)
+
+        # Print out the events
+        logs = []
+        for event in response['StackEvents']:
+            if 'FAILED' in event['ResourceStatus']:
+                logs.append(f"""
+                    Resource: {event['LogicalResourceId']}
+                    Status: {event['ResourceStatus']}
+                    Reason: {event['ResourceStatusReason']}
+                """)
+
+        return logs
+
+    def request_deployment_info(self) -> str:
+        """
+        Coalesce a response to the user requesting the remaining info for a deployment.
+        Consider's the user's input as well.
+        """
+
+        prompt = f"""
+            cloudformation stack template:
+            {json.dumps(self.user_stack.template)}
+        """
+
+        response = prompt_with_file(
+            BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, prompt, self.gpt_client
+        )
+
+        return response
 
     def deploy_stack(self, stack_name: str) -> Tuple[str, ChatSessionState]:
         """
@@ -105,12 +159,12 @@ class DeployCFStackAction(base.AbstractAction):
             state = ChatSessionState.DEPLOYMENT_SUCCEEDED
         except Exception as e:
             print(f"Error waiting for stack deployment: {e}")
-            response += str(e)
             state = ChatSessionState.DEPLOYMENT_FAILED
+            return str(e)
         finally:
             self.state_manager.update_chat_session_state(self.chat_session_id, state)
 
-        return response
+        return str(response)
 
     def trigger_action(self, input) -> Any:
         """
@@ -121,12 +175,25 @@ class DeployCFStackAction(base.AbstractAction):
         # wasn't then check right now to see deployability.
         state = self.state_manager.get_cf_stack(self.chat_session_id)
         deployable = state == ChatSessionState.QUERIED_AND_DEPLOYABLE
+        deployment_state: DeployableState
         if not deployable:
-            deployable = self.verify_stack_deployable()
+            deployment_state = self.verify_stack_deployable()
 
         # 2. if yes, deploy it. Return a deployment report to the user.
-        if deployable:
+        if deployment_state == DeployableState.DEPLOYABLE:
             return self.deploy_stack(input)
+        elif deployment_state == DeployableState.INVALID_FORMAT:
+            # Output format was a json
+            pass
+        elif deployment_state == DeployableState.INACCURACTE_INFORMATION:
+            # LLM hallucinated info (ami id, login creds)
+            pass
+        elif deployment_state == DeployableState.MISSING_INFORMATION:
+            # Request more info from user.
+            pass
+        elif deployment_state == DeployableState.OTHER:
+            # throw error
+            pass
 
         # 3. if no, send msg to user asking for remaining info.
         pass
