@@ -17,17 +17,20 @@ from enum import Enum
 #       If passing, attempt to deploy
 #           If deployment fails, see if there is info needed from user or not. If yes, request from user. if no, break gracefully.
 
-REQUEST_DEPLOYMENT_INFO_PROMPT="request_deployment_info.txt"
+REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
+
 
 class DeployableState(Enum):
     """
     Represents whether or not the stack is ready for deployment
     """
+
     DEPLOYABLE = 0
     INACCURACTE_INFORMATION = 1
     MISSING_INFORMATION = 2
     INVALID_FORMAT = 3
     OTHER = 4
+
 
 class DeployCFStackAction(base.AbstractAction):
     """
@@ -78,13 +81,15 @@ class DeployCFStackAction(base.AbstractAction):
 
         # Print out the events
         logs = []
-        for event in response['StackEvents']:
-            if 'FAILED' in event['ResourceStatus']:
-                logs.append(f"""
+        for event in response["StackEvents"]:
+            if "FAILED" in event["ResourceStatus"]:
+                logs.append(
+                    f"""
                     Resource: {event['LogicalResourceId']}
                     Status: {event['ResourceStatus']}
                     Reason: {event['ResourceStatusReason']}
-                """)
+                """
+                )
 
         return logs
 
@@ -146,7 +151,9 @@ class DeployCFStackAction(base.AbstractAction):
 
         # Marking the deployment as in progress
         state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
-        self.state_manager.update_chat_session_state(self.chat_session_id, ChatSessionState.DEPLOYMENT_IN_PROGRESS)
+        self.state_manager.update_chat_session_state(
+            self.chat_session_id, ChatSessionState.DEPLOYMENT_IN_PROGRESS
+        )
 
         # Wait for the stack to be created/updated
         waiter = self.cf_client.get_waiter(
@@ -171,7 +178,7 @@ class DeployCFStackAction(base.AbstractAction):
         Entrypoint for deploying a stack to aws
         """
 
-        # 1. Check Whether stack can be deployed, according to a previous run. If it 
+        # 1. Check Whether stack can be deployed, according to a previous run. If it
         # wasn't then check right now to see deployability.
         state = self.state_manager.get_cf_stack(self.chat_session_id)
         deployable = state == ChatSessionState.QUERIED_AND_DEPLOYABLE
