@@ -86,8 +86,7 @@ class SupaClient:
         ).data[0]
 
         return CloudFormationStack(
-            response[CF_STACK_COL_NAME], 
-            hash(response[CF_STACK_COL_NAME]['name'])
+            response[CF_STACK_COL_NAME], hash(response[CF_STACK_COL_NAME]["name"])
         )
 
     def edit_entire_cf_stack(

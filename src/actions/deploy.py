@@ -11,14 +11,15 @@ from enum import Enum
 
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
-NUM_RETRIES=3
+NUM_RETRIES = 3
 REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
 
 # Ret messages
-REDPLOYMENT_RESPONSE="Looks like you already have attempted to deploy this infra before. Try opening up a new one."
-WIP_RESPONSE="Hang tight, the deployment is still happening. Check back later."
-SUCCESS_RESPONSE="Huzzah, your deployment succeeded! You can take it from here, please let me know if you have any additional questions regarding the deployment!"
-NO_INPUT_YET_RESPONSE="I don't think you've given me any specifications yet. Pls provide some before you deploy."
+REDPLOYMENT_RESPONSE = "Looks like you already have attempted to deploy this infra before. Try opening up a new one."
+WIP_RESPONSE = "Hang tight, the deployment is still happening. Check back later."
+SUCCESS_RESPONSE = "Huzzah, your deployment succeeded! You can take it from here, please let me know if you have any additional questions regarding the deployment!"
+NO_INPUT_YET_RESPONSE = "I don't think you've given me any specifications yet. Pls provide some before you deploy."
+
 
 class DiagnoserState(Enum):
     """
@@ -30,14 +31,15 @@ class DiagnoserState(Enum):
     INVALID_FORMAT = 2
     OTHER = 3
 
+
 class Diagnoser:
     """
     A class that intakes a cf stack, and diagnoses what is or isn't wrong with the template.
     """
 
     def __init__(self, stack: CloudFormationStack) -> None:
-        self.stack=stack
-    
+        self.stack = stack
+
     def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
         """
         A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
@@ -45,17 +47,21 @@ class Diagnoser:
         """
         pass
 
-    def verify_stack_deployable(self, current_state: ChatSessionState) -> DiagnoserState:
+    def verify_stack_deployable(
+        self, current_state: ChatSessionState
+    ) -> DiagnoserState:
         """
         A binary classifier that returns whether the stack can be deployed or not.
         """
         # If the stack has been deployed before, check logs to see for failures. If there are logs, return missing state.
-        if current_state == ChatSessionState.DEPLOYMENT_FAILED and self.get_stack_logs(self.user_stack.name):
+        if current_state == ChatSessionState.DEPLOYMENT_FAILED and self.get_stack_logs(
+            self.user_stack.name
+        ):
             return DiagnoserState.INACCURACTE_OR_MISSING_INFORMATION
 
         # If not, check cf stack with gpt call to check if it has issues. If no issues, return true.
         return True
-    
+
     def get_stack_logs(self, stack_name: str) -> List[str]:
         """
         Get logs for a cf stack deployment. Returns a list of log messages.
@@ -195,7 +201,7 @@ class DeployCFStackAction(base.AbstractAction):
         Returns a message to the user
         """
         new_stack = diagnoser.fix_broken_stack()
-        response=""
+        response = ""
         for i in range(NUM_RETRIES):
             pass
         return response
@@ -210,30 +216,41 @@ class DeployCFStackAction(base.AbstractAction):
 
         #   1.a If previously deployed, check state.
         if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
-            response = REDPLOYMENT_RESPONSE # 1.b If succeeded, return msg saying we don't do redeployments
+            response = REDPLOYMENT_RESPONSE  # 1.b If succeeded, return msg saying we don't do redeployments
         elif state == ChatSessionState.DEPLOYMENT_IN_PROGRESS:
-            response = WIP_RESPONSE # 1.c If in progress, return msg saying a deployment is in progress
+            response = WIP_RESPONSE  # 1.c If in progress, return msg saying a deployment is in progress
         elif state == ChatSessionState.DEPLOYMENT_FAILED:
             response = self.handle_failed_deployment(Diagnoser(self.user_stack))
         #       1.d If failed, call diagnoser.
         #           1.d.1 if hallucination on logic or vars, do CoV retries
         #           1.d.2 if missing info, return msg asking for missing info
         elif state == ChatSessionState.QUERIED_AND_DEPLOYABLE:
-            response, state = self.deploy_stack(input) # 1.e If deployable but not deployed, run deployment.
-        elif state == ChatSessionState.QUERIED or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE:
-            diagnoser = Diagnoser(self.user_stack) # 2. if never deployed, validate stack is deployable
+            response, state = self.deploy_stack(
+                input
+            )  # 1.e If deployable but not deployed, run deployment.
+        elif (
+            state == ChatSessionState.QUERIED
+            or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE
+        ):
+            diagnoser = Diagnoser(
+                self.user_stack
+            )  # 2. if never deployed, validate stack is deployable
             diagnoser_decision = diagnoser.verify_stack_deployable(state)
 
             #   2.a if not deployable, call diagnoser with same retry/missing info requests
             if diagnoser_decision == DiagnoserState.DEPLOYABLE:
-                response, state = self.deploy_stack(input) #   2.b if deployable, attempt deployment.
+                response, state = self.deploy_stack(
+                    input
+                )  #   2.b if deployable, attempt deployment.
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
-                    response = SUCCESS_RESPONSE # 2.b.1 if succeeded, return msg saying deployment succeeded
+                    response = SUCCESS_RESPONSE  # 2.b.1 if succeeded, return msg saying deployment succeeded
                 else:
-                    response = self.handle_failed_deployment(diagnoser) # 2.b.2 if failed, call diagnoser with same retry/missing info requests
+                    response = self.handle_failed_deployment(
+                        diagnoser
+                    )  # 2.b.2 if failed, call diagnoser with same retry/missing info requests
         elif state == ChatSessionState.NOT_QUERIED:
             # return msg saying you haven't given me any specs. what am i supposed to do lol.
-            response=NO_INPUT_YET_RESPONSE
+            response = NO_INPUT_YET_RESPONSE
 
         if state == ChatSessionState.DEPLOYMENT_FAILED:
             # return some kind of error message to the user
