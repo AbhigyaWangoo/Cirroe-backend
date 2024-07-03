@@ -36,7 +36,7 @@ class EditCFStackAction(base.AbstractAction):
             print(f"Couldn't parse due to {e}. Retrying...")
             return self.determine_edit(user_input, retries - 1)
 
-        return CloudFormationStack(new_stack)
+        return CloudFormationStack(new_stack, hash(user_input))
 
     def describe_changes(
         self, s1: CloudFormationStack, s2: CloudFormationStack, original_prompt: str

@@ -36,7 +36,7 @@ class ConstructCFStackAction(base.AbstractAction):
 
             return self._extract_template(input, retries - 1)
 
-        return CloudFormationStack(cf_json)
+        return CloudFormationStack(cf_json, hash(input))
 
     def _verify_stack(
         self, stack: CloudFormationStack, original_query: str

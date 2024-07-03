@@ -22,11 +22,10 @@ class ChatSessionState(Enum):
     NOT_QUERIED = 0
     QUERIED_NOT_DEPLOYABLE = 1
     QUERIED_AND_DEPLOYABLE = 2
-    DEPLOYED = 3
-    DEPLOYMENT_FAILED = 4
-    DEPLOYMENT_IN_PROGRESS = 5
-    DEPLOYMENT_SUCCEEDED = 6
-    QUERIED = 7
+    DEPLOYMENT_FAILED = 3
+    DEPLOYMENT_IN_PROGRESS = 4
+    DEPLOYMENT_SUCCEEDED = 5
+    QUERIED = 6
 
 
 class Table(StrEnum):
@@ -86,7 +85,10 @@ class SupaClient:
             .execute()
         ).data[0]
 
-        return CloudFormationStack(response[CF_STACK_COL_NAME])
+        return CloudFormationStack(
+            response[CF_STACK_COL_NAME], 
+            hash(response[CF_STACK_COL_NAME]['name'])
+        )
 
     def edit_entire_cf_stack(
         self, chat_session_id: int, new_stack: CloudFormationStack

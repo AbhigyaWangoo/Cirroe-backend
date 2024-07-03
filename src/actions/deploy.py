@@ -11,25 +11,72 @@ from enum import Enum
 
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
-# Deployment should go as follows
-# 1. Lint the deployment.
-#       If not passing, return reasons for what needs to be fixed
-#       If passing, attempt to deploy
-#           If deployment fails, see if there is info needed from user or not. If yes, request from user. if no, break gracefully.
-
+NUM_RETRIES=3
 REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
 
+# Ret messages
+REDPLOYMENT_RESPONSE="Looks like you already have attempted to deploy this infra before. Try opening up a new one."
+WIP_RESPONSE="Hang tight, the deployment is still happening. Check back later."
+SUCCESS_RESPONSE="Huzzah, your deployment succeeded! You can take it from here, please let me know if you have any additional questions regarding the deployment!"
+NO_INPUT_YET_RESPONSE="I don't think you've given me any specifications yet. Pls provide some before you deploy."
 
-class DeployableState(Enum):
+class DiagnoserState(Enum):
     """
     Represents whether or not the stack is ready for deployment
     """
 
     DEPLOYABLE = 0
-    INACCURACTE_INFORMATION = 1
-    MISSING_INFORMATION = 2
-    INVALID_FORMAT = 3
-    OTHER = 4
+    INACCURACTE_OR_MISSING_INFORMATION = 1
+    INVALID_FORMAT = 2
+    OTHER = 3
+
+class Diagnoser:
+    """
+    A class that intakes a cf stack, and diagnoses what is or isn't wrong with the template.
+    """
+
+    def __init__(self, stack: CloudFormationStack) -> None:
+        self.stack=stack
+    
+    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
+        """
+        A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
+        Returns the fixed stack.
+        """
+        pass
+
+    def verify_stack_deployable(self, current_state: ChatSessionState) -> DiagnoserState:
+        """
+        A binary classifier that returns whether the stack can be deployed or not.
+        """
+        # If the stack has been deployed before, check logs to see for failures. If there are logs, return missing state.
+        if current_state == ChatSessionState.DEPLOYMENT_FAILED and self.get_stack_logs(self.user_stack.name):
+            return DiagnoserState.INACCURACTE_OR_MISSING_INFORMATION
+
+        # If not, check cf stack with gpt call to check if it has issues. If no issues, return true.
+        return True
+    
+    def get_stack_logs(self, stack_name: str) -> List[str]:
+        """
+        Get logs for a cf stack deployment. Returns a list of log messages.
+        """
+
+        # Get stack events
+        response = self.cf_client.describe_stack_events(StackName=stack_name)
+
+        # Print out the events
+        logs = []
+        for event in response["StackEvents"]:
+            if "FAILED" in event["ResourceStatus"]:
+                logs.append(
+                    f"""
+                    Resource: {event['LogicalResourceId']}
+                    Status: {event['ResourceStatus']}
+                    Reason: {event['ResourceStatusReason']}
+                """
+                )
+
+        return logs
 
 
 class DeployCFStackAction(base.AbstractAction):
@@ -61,37 +108,6 @@ class DeployCFStackAction(base.AbstractAction):
         self.state_manager = state_manager
         self.chat_session_id = chat_session_id
         super().__init__()
-
-    def verify_stack_deployable(self) -> DeployableState:
-        """
-        A binary classifier that returns whether the stack can be deployed or not.
-        """
-        # If the stack has been deployed before, check logs to see for failures
-
-        # If not, check cf stack with gpt call to check if it has issues. If no issues, return true.
-        return True
-
-    def get_stack_logs(self, stack_name: str) -> List[str]:
-        """
-        Get logs for a cf stack deployment. Returns a list of log messages.
-        """
-
-        # Get stack events
-        response = self.cf_client.describe_stack_events(StackName=stack_name)
-
-        # Print out the events
-        logs = []
-        for event in response["StackEvents"]:
-            if "FAILED" in event["ResourceStatus"]:
-                logs.append(
-                    f"""
-                    Resource: {event['LogicalResourceId']}
-                    Status: {event['ResourceStatus']}
-                    Reason: {event['ResourceStatusReason']}
-                """
-                )
-
-        return logs
 
     def request_deployment_info(self) -> str:
         """
@@ -167,40 +183,60 @@ class DeployCFStackAction(base.AbstractAction):
         except Exception as e:
             print(f"Error waiting for stack deployment: {e}")
             state = ChatSessionState.DEPLOYMENT_FAILED
-            return str(e)
+            return str(e), state
         finally:
             self.state_manager.update_chat_session_state(self.chat_session_id, state)
 
-        return str(response)
+        return str(response), state
+
+    def handle_failed_deployment(self, diagnoser: Diagnoser) -> str:
+        """
+        Handles a failed deployment with the Diagnoser class.
+        Returns a message to the user
+        """
+        new_stack = diagnoser.fix_broken_stack()
+        response=""
+        for i in range(NUM_RETRIES):
+            pass
+        return response
 
     def trigger_action(self, input) -> Any:
         """
         Entrypoint for deploying a stack to aws
         """
 
-        # 1. Check Whether stack can be deployed, according to a previous run. If it
-        # wasn't then check right now to see deployability.
-        state = self.state_manager.get_cf_stack(self.chat_session_id)
-        deployable = state == ChatSessionState.QUERIED_AND_DEPLOYABLE
-        deployment_state: DeployableState
-        if not deployable:
-            deployment_state = self.verify_stack_deployable()
+        state = self.state_manager.get_chat_session_state(self.chat_session_id)
+        response = ""
 
-        # 2. if yes, deploy it. Return a deployment report to the user.
-        if deployment_state == DeployableState.DEPLOYABLE:
-            return self.deploy_stack(input)
-        elif deployment_state == DeployableState.INVALID_FORMAT:
-            # Output format was a json
-            pass
-        elif deployment_state == DeployableState.INACCURACTE_INFORMATION:
-            # LLM hallucinated info (ami id, login creds)
-            pass
-        elif deployment_state == DeployableState.MISSING_INFORMATION:
-            # Request more info from user.
-            pass
-        elif deployment_state == DeployableState.OTHER:
-            # throw error
+        #   1.a If previously deployed, check state.
+        if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
+            response = REDPLOYMENT_RESPONSE # 1.b If succeeded, return msg saying we don't do redeployments
+        elif state == ChatSessionState.DEPLOYMENT_IN_PROGRESS:
+            response = WIP_RESPONSE # 1.c If in progress, return msg saying a deployment is in progress
+        elif state == ChatSessionState.DEPLOYMENT_FAILED:
+            response = self.handle_failed_deployment(Diagnoser(self.user_stack))
+        #       1.d If failed, call diagnoser.
+        #           1.d.1 if hallucination on logic or vars, do CoV retries
+        #           1.d.2 if missing info, return msg asking for missing info
+        elif state == ChatSessionState.QUERIED_AND_DEPLOYABLE:
+            response, state = self.deploy_stack(input) # 1.e If deployable but not deployed, run deployment.
+        elif state == ChatSessionState.QUERIED or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE:
+            diagnoser = Diagnoser(self.user_stack) # 2. if never deployed, validate stack is deployable
+            diagnoser_decision = diagnoser.verify_stack_deployable(state)
+
+            #   2.a if not deployable, call diagnoser with same retry/missing info requests
+            if diagnoser_decision == DiagnoserState.DEPLOYABLE:
+                response, state = self.deploy_stack(input) #   2.b if deployable, attempt deployment.
+                if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
+                    response = SUCCESS_RESPONSE # 2.b.1 if succeeded, return msg saying deployment succeeded
+                else:
+                    response = self.handle_failed_deployment(diagnoser) # 2.b.2 if failed, call diagnoser with same retry/missing info requests
+        elif state == ChatSessionState.NOT_QUERIED:
+            # return msg saying you haven't given me any specs. what am i supposed to do lol.
+            response=NO_INPUT_YET_RESPONSE
+
+        if state == ChatSessionState.DEPLOYMENT_FAILED:
+            # return some kind of error message to the user
             pass
 
-        # 3. if no, send msg to user asking for remaining info.
-        pass
+        return response
