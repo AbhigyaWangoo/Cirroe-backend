@@ -19,6 +19,9 @@ REDPLOYMENT_RESPONSE = "Looks like you already have attempted to deploy this inf
 WIP_RESPONSE = "Hang tight, the deployment is still happening. Check back later."
 SUCCESS_RESPONSE = "Huzzah, your deployment succeeded! You can take it from here, please let me know if you have any additional questions regarding the deployment!"
 NO_INPUT_YET_RESPONSE = "I don't think you've given me any specifications yet. Pls provide some before you deploy."
+ERROR_RESPONSE = (
+    "Awe man, looks like something failed with the deployment. Please contact support."
+)
 
 
 class DiagnoserState(Enum):
@@ -27,7 +30,7 @@ class DiagnoserState(Enum):
     """
 
     DEPLOYABLE = 0
-    INACCURACTE_OR_MISSING_INFORMATION = 1
+    INACCURATE_OR_MISSING_INFORMATION = 1
     INVALID_FORMAT = 2
     OTHER = 3
 
@@ -37,30 +40,44 @@ class Diagnoser:
     A class that intakes a cf stack, and diagnoses what is or isn't wrong with the template.
     """
 
-    def __init__(self, stack: CloudFormationStack) -> None:
+    def __init__(
+        self, stack: CloudFormationStack, cf_client: boto3.session.Session.client
+    ) -> None:
         self.stack = stack
+        self.cf_client = cf_client
 
-    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
+    def fix_broken_stack(
+        self, diagnosed_issue: DiagnoserState | None
+    ) -> CloudFormationStack:
         """
         A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
         Returns the fixed stack.
         """
-        pass
 
-    def verify_stack_deployable(
+        # if hallucination on logic or vars, do CoV retries
+        # if missing info, return msg asking for missing info
+
+        return self.stack
+
+    def determine_stack_deployability(
         self, current_state: ChatSessionState
     ) -> DiagnoserState:
         """
         A binary classifier that returns whether the stack can be deployed or not.
         """
         # If the stack has been deployed before, check logs to see for failures. If there are logs, return missing state.
+        # Skipping invalid format for now. Expecting that will be handled by retries
         if current_state == ChatSessionState.DEPLOYMENT_FAILED and self.get_stack_logs(
-            self.user_stack.name
+            self.stack.name
         ):
-            return DiagnoserState.INACCURACTE_OR_MISSING_INFORMATION
+            return DiagnoserState.INACCURATE_OR_MISSING_INFORMATION
+        elif (
+            current_state == ChatSessionState.DEPLOYMENT_SUCCEEDED
+            or current_state == ChatSessionState.QUERIED_AND_DEPLOYABLE
+        ):
+            return DiagnoserState.DEPLOYABLE
 
-        # If not, check cf stack with gpt call to check if it has issues. If no issues, return true.
-        return True
+        return DiagnoserState.OTHER
 
     def get_stack_logs(self, stack_name: str) -> List[str]:
         """
@@ -130,6 +147,10 @@ class DeployCFStackAction(base.AbstractAction):
             BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, prompt, self.gpt_client
         )
 
+        self.state_manager.update_chat_session_state(
+            self.chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
+        )
+
         return response
 
     def deploy_stack(self, stack_name: str) -> Tuple[str, ChatSessionState]:
@@ -143,70 +164,88 @@ class DeployCFStackAction(base.AbstractAction):
         response = None
 
         try:
-            # Check if the stack exists
-            existing_stacks = self.cf_client.describe_stacks(StackName=stack_name)
-            stack_exists = any(
-                stack["StackName"] == stack_name for stack in existing_stacks["Stacks"]
-            )
-        except self.cf_client.exceptions.ClientError as e:
-            if "does not exist" in str(e):
-                stack_exists = False
+            try:
+                # Check if the stack exists
+                existing_stacks = self.cf_client.describe_stacks(StackName=stack_name)
+                stack_exists = any(
+                    stack["StackName"] == stack_name
+                    for stack in existing_stacks["Stacks"]
+                )
+            except self.cf_client.exceptions.ClientError as e:
+                if "does not exist" in str(e):
+                    stack_exists = False
+                else:
+                    raise
+
+            if stack_exists:
+                # Update the stack
+                print(f"Updating stack {stack_name}")
+                response = self.cf_client.update_stack(
+                    StackName=stack_name,
+                    TemplateBody=template_body,
+                    Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
+                )
             else:
-                raise
+                # Create the stack
+                print(f"Creating stack {stack_name}")
+                response = self.cf_client.create_stack(
+                    StackName=stack_name,
+                    TemplateBody=template_body,
+                    Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
+                )
 
-        if stack_exists:
-            # Update the stack
-            print(f"Updating stack {stack_name}")
-            response = self.cf_client.update_stack(
-                StackName=stack_name,
-                TemplateBody=template_body,
-                Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
-            )
-        else:
-            # Create the stack
-            print(f"Creating stack {stack_name}")
-            response = self.cf_client.create_stack(
-                StackName=stack_name,
-                TemplateBody=template_body,
-                Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
+            # Marking the deployment as in progress
+            state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
+            self.state_manager.update_chat_session_state(
+                self.chat_session_id, ChatSessionState.DEPLOYMENT_IN_PROGRESS
             )
 
-        # Marking the deployment as in progress
-        state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
-        self.state_manager.update_chat_session_state(
-            self.chat_session_id, ChatSessionState.DEPLOYMENT_IN_PROGRESS
-        )
+            # Wait for the stack to be created/updated
+            waiter = self.cf_client.get_waiter(
+                "stack_create_complete" if not stack_exists else "stack_update_complete"
+            )
 
-        # Wait for the stack to be created/updated
-        waiter = self.cf_client.get_waiter(
-            "stack_create_complete" if not stack_exists else "stack_update_complete"
-        )
-        try:
             print("Waiting on stack deployment...")
             waiter.wait(StackName=stack_name)
             print(f"Stack {stack_name} deployment complete.")
             state = ChatSessionState.DEPLOYMENT_SUCCEEDED
         except Exception as e:
-            print(f"Error waiting for stack deployment: {e}")
+            print(f"Error during stack deployment: {e}")
             state = ChatSessionState.DEPLOYMENT_FAILED
-            return str(e), state
         finally:
             self.state_manager.update_chat_session_state(self.chat_session_id, state)
 
+        if (
+            state == ChatSessionState.DEPLOYMENT_FAILED
+        ):  # if deployment failed, clean the resources
+            response = self.cf_client.delete_stack(StackName=stack_name)
+
+            # Wait until the stack deletion is complete
+            waiter = self.cf_client.get_waiter("stack_delete_complete")
+            print(f"Deleting stack {stack_name}...")
+            waiter.wait(StackName=stack_name)
+            print(f"Stack {stack_name} has been deleted.")
+
         return str(response), state
 
-    def handle_failed_deployment(self, diagnoser: Diagnoser) -> str:
+    def handle_failed_deployment(
+        self, diagnoser: Diagnoser, diagnosed_issue: DiagnoserState | None = None
+    ) -> str:
         """
         Handles a failed deployment with the Diagnoser class.
         Returns a message to the user
         """
-        new_stack = diagnoser.fix_broken_stack()
-        response = ""
-        for i in range(NUM_RETRIES):
-            pass
-        return response
+        new_stack = diagnoser.fix_broken_stack(diagnosed_issue)
 
-    def trigger_action(self, input) -> Any:
+        for _ in range(NUM_RETRIES):
+            _, state = self.deploy_stack(new_stack.name)
+
+            if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
+                return SUCCESS_RESPONSE
+
+        return ERROR_RESPONSE
+
+    def trigger_action(self) -> Any:
         """
         Entrypoint for deploying a stack to aws
         """
@@ -216,14 +255,15 @@ class DeployCFStackAction(base.AbstractAction):
 
         #   1.a If previously deployed, check state.
         if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
-            response = REDPLOYMENT_RESPONSE  # 1.b If succeeded, return msg saying we don't do redeployments
+            # 1.b If succeeded, return msg saying we don't do redeployments
+            response = REDPLOYMENT_RESPONSE
         elif state == ChatSessionState.DEPLOYMENT_IN_PROGRESS:
-            response = WIP_RESPONSE  # 1.c If in progress, return msg saying a deployment is in progress
+            # 1.c If in progress, return msg saying a deployment is in progress
+            response = WIP_RESPONSE
         elif state == ChatSessionState.DEPLOYMENT_FAILED:
-            response = self.handle_failed_deployment(Diagnoser(self.user_stack))
-        #       1.d If failed, call diagnoser.
-        #           1.d.1 if hallucination on logic or vars, do CoV retries
-        #           1.d.2 if missing info, return msg asking for missing info
+            response = self.handle_failed_deployment(
+                Diagnoser(self.user_stack, self.cf_client)
+            )
         elif state == ChatSessionState.QUERIED_AND_DEPLOYABLE:
             response, state = self.deploy_stack(
                 input
@@ -233,26 +273,30 @@ class DeployCFStackAction(base.AbstractAction):
             or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE
         ):
             diagnoser = Diagnoser(
-                self.user_stack
+                self.user_stack, self.cf_client
             )  # 2. if never deployed, validate stack is deployable
-            diagnoser_decision = diagnoser.verify_stack_deployable(state)
+            diagnoser_decision = diagnoser.determine_stack_deployability(state)
 
             #   2.a if not deployable, call diagnoser with same retry/missing info requests
             if diagnoser_decision == DiagnoserState.DEPLOYABLE:
                 response, state = self.deploy_stack(
                     input
-                )  #   2.b if deployable, attempt deployment.
+                )  # 2.b if deployable, attempt deployment.
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
-                    response = SUCCESS_RESPONSE  # 2.b.1 if succeeded, return msg saying deployment succeeded
+                    # 2.b.1 if succeeded, return msg saying deployment succeeded
+                    response = SUCCESS_RESPONSE
                 else:
                     response = self.handle_failed_deployment(
-                        diagnoser
+                        diagnoser, diagnoser_decision
                     )  # 2.b.2 if failed, call diagnoser with same retry/missing info requests
+            else:
+                response = self.handle_failed_deployment(
+                    diagnoser, diagnoser_decision
+                )  # 2.b.2 if failed, call diagnoser with same retry/missing info requests
         elif state == ChatSessionState.NOT_QUERIED:
             # return msg saying you haven't given me any specs. what am i supposed to do lol.
             response = NO_INPUT_YET_RESPONSE
-
-        if state == ChatSessionState.DEPLOYMENT_FAILED:
+        elif state == ChatSessionState.DEPLOYMENT_FAILED:
             # return some kind of error message to the user
             pass
 
