@@ -6,3 +6,5 @@ typeguard
 python-dotenv
 boto3
 anthropic
+fastapi
+uvicorn

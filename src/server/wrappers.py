@@ -76,7 +76,7 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> s
         )
         return None
 
-def deploy_wrapper(user_id: int, chat_session_id: int):
+def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
     pass
 
 def handle_irrelevant_query(query: str, client: GPTClient) -> str:
