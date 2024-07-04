@@ -195,6 +195,9 @@ class DeployCFStackAction(base.AbstractAction):
         prompt = f"""
             cloudformation stack template:
             {json.dumps(self.user_stack.template)}
+            
+            logs:
+            {json.dumps(', '.join(list(self.diagnoser.logs_cache)))}
         """
 
         # TODO also use self.diagnoser.logs_cache to check exactly what is needed.
@@ -294,7 +297,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         try:
             new_stack = self.diagnoser.fix_broken_stack(diagnosed_issue)
-            for i in range(1):  # TODO change be back
+            for i in range(NUM_RETRIES):  # TODO change be back
                 _, state = self.deploy_stack(new_stack.name)
                 print(f"state after {i} deployment: {state}")
 
@@ -366,6 +369,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         if state == ChatSessionState.DEPLOYMENT_FAILED:
             diagnoser_decision = self.diagnoser.determine_stack_deployability(state)
+            print(f"Diagnosed decision in beginning: {diagnoser_decision}")
             response = self.handle_failed_deployment(diagnoser_decision)
 
         return response
