@@ -38,31 +38,6 @@ class ConstructCFStackAction(base.AbstractAction):
 
         return CloudFormationStack(cf_json, hash(input))
 
-    def _verify_stack(
-        self, stack: CloudFormationStack, original_query: str
-    ) -> CloudFormationStack:
-        """
-        Verifies the provided stack is indeed handling the original query's needs or not.
-        Also checks the stack against other examples to ensure the syntax is valid.
-        """
-
-        prompt = f"""
-            Original query:
-            {original_query}
-
-            Constructed stack: 
-            {json.dumps(stack.template)}
-        """
-
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + VERIFY_CONSTRUCTED_STACK,
-            prompt,
-            self.gpt_client,
-            is_json=True,
-        )
-
-        return response
-
     def _coalesce_response(
         self, stack: CloudFormationStack, original_query: str
     ) -> str:
@@ -99,7 +74,6 @@ class ConstructCFStackAction(base.AbstractAction):
         print(cf_stack.template)
 
         # 3. Check cf stack template against original query. Removing for now.
-        # fixed_cf_stack = self._verify_stack(cf_stack, cleaned_input)
         self.stack = cf_stack
 
         # 3.a TODO persist cf stack in storage (async ideally)
