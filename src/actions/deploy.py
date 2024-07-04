@@ -10,6 +10,7 @@ from src.db.supa import SupaClient, ChatSessionState
 from include.llm.base import AbstractLLMClient
 from include.utils import prompt_with_file, BASE_PROMPT_PATH
 from enum import Enum
+
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
 NUM_RETRIES = 3
@@ -42,13 +43,17 @@ class CFStackRequiresUserInfoException(Exception):
     """
     An exception that marks cases where stacks cannot be fixed in any capacity
     """
+
     pass
+
 
 class DeploymentBrokenException(Exception):
     """
     An exception that marks cases where a broken deployment can't be debugged.
     """
+
     pass
+
 
 class Diagnoser:
     """
@@ -67,9 +72,7 @@ class Diagnoser:
         self.logs_cache = deque(maxlen=log_cache_limit)
         self.llm_client = llm_client
 
-    def fix_broken_stack(
-        self, diagnosed_issue: DiagnoserState
-    ) -> CloudFormationStack:
+    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
         """
         A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
         Returns the fixed stack.
@@ -83,10 +86,15 @@ class Diagnoser:
             {'Log Message:'.join(map(str, self.logs_cache))}
         """
 
-        if diagnosed_issue == DiagnoserState.DEPLOYABLE: # No action. stack is good as is.
+        if (
+            diagnosed_issue == DiagnoserState.DEPLOYABLE
+        ):  # No action. stack is good as is.
             return self.stack
-        elif diagnosed_issue == DiagnoserState.MISSING_OR_INVALID_DATA or diagnosed_issue == DiagnoserState.OTHER:
-            # Need to basically verify that the cf stack's info that is broken can be 
+        elif (
+            diagnosed_issue == DiagnoserState.MISSING_OR_INVALID_DATA
+            or diagnosed_issue == DiagnoserState.OTHER
+        ):
+            # Need to basically verify that the cf stack's info that is broken can be
             # fixed/is a stupid mistake rather than user issue.
             response = prompt_with_file(
                 BASE_PROMPT_PATH + VERIFY_CONSTRUCTED_STACK,
@@ -278,9 +286,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         return str(response), state
 
-    def handle_failed_deployment(
-        self, diagnosed_issue: DiagnoserState
-    ) -> str:
+    def handle_failed_deployment(self, diagnosed_issue: DiagnoserState) -> str:
         """
         Handles a failed deployment with the Diagnoser class.
         Returns a message to the user
@@ -288,7 +294,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         try:
             new_stack = self.diagnoser.fix_broken_stack(diagnosed_issue)
-            for i in range(1): # TODO change be back
+            for i in range(1):  # TODO change be back
                 _, state = self.deploy_stack(new_stack.name)
                 print(f"state after {i} deployment: {state}")
 
@@ -299,11 +305,11 @@ class DeployCFStackAction(base.AbstractAction):
                 print(deployability)
                 print(f"logs length: {len(self.diagnoser.logs_cache)}")
                 new_stack = self.diagnoser.fix_broken_stack(deployability)
-                self.diagnoser.logs_cache.clear() # need to clear here so that in the following run, we don't include misinformation
+                self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
         except CFStackRequiresUserInfoException:
             print("Deployment requires user info. Returning specific request message.")
             ret_msg = self.request_deployment_info()
-            self.diagnoser.logs_cache.clear() # need to clear here so that in the following run, we don't include misinformation
+            self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
             return ret_msg
         # except Exception as e:
         #     print(f"Error handling failed deployment: {e}")
