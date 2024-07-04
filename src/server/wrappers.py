@@ -1,4 +1,3 @@
-from src.model.stack import CloudFormationStack
 from src.actions.construct import ConstructCFStackAction
 from src.actions.edit import EditCFStackAction
 from src.db.supa import SupaClient, ChatSessionState, ID

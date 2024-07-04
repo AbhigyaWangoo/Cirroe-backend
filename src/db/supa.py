@@ -1,4 +1,5 @@
 from src.model.stack import CloudFormationStack
+import hashlib
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -8,6 +9,7 @@ from enum import Enum, StrEnum
 # DB Column names
 CF_STACK_COL_NAME = "CirrusTemplate"
 STATE_COL_NAME = "State"
+STACK_NAME_COL = "StackName"
 ID = "id"
 
 
@@ -67,7 +69,13 @@ class SupaClient:
 
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
-            .insert({"UserId": self.user_id, CF_STACK_COL_NAME: stack.template})
+            .insert(
+                {
+                    "UserId": self.user_id,
+                    CF_STACK_COL_NAME: stack.template,
+                    STACK_NAME_COL: stack.name,
+                }
+            )
             .execute()
         )
 
@@ -80,13 +88,27 @@ class SupaClient:
 
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
-            .select(CF_STACK_COL_NAME)
+            .select(STACK_NAME_COL, CF_STACK_COL_NAME)
             .eq(ID, chat_session_id)
             .execute()
         ).data[0]
 
+        if response[STACK_NAME_COL] is None:
+            new_name = str(chat_session_id)
+            new_name = hashlib.sha256(bytes(new_name)).hexdigest()
+            print(
+                f"Name of stack with id {chat_session_id} was none. setting it to {new_name}"
+            )
+            response[STACK_NAME_COL] = new_name
+            self.edit_entire_cf_stack(
+                chat_session_id,
+                CloudFormationStack(
+                    response[CF_STACK_COL_NAME], response[STACK_NAME_COL]
+                ),
+            )
+
         return CloudFormationStack(
-            response[CF_STACK_COL_NAME], hash(response[CF_STACK_COL_NAME]["name"])
+            response[CF_STACK_COL_NAME], response[STACK_NAME_COL]
         )
 
     def edit_entire_cf_stack(
@@ -98,7 +120,9 @@ class SupaClient:
 
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
-            .update({CF_STACK_COL_NAME: new_stack.template})
+            .update(
+                {CF_STACK_COL_NAME: new_stack.template, STACK_NAME_COL: new_stack.name}
+            )
             .eq(ID, chat_session_id)
             .execute()
         )
