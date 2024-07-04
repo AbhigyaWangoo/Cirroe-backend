@@ -36,7 +36,7 @@ class ConstructCFStackAction(base.AbstractAction):
 
             return self._extract_template(input, retries - 1)
 
-        return CloudFormationStack(cf_json, hash(input))
+        return CloudFormationStack(cf_json, str(hash(input)))
 
     def _coalesce_response(
         self, stack: CloudFormationStack, original_query: str

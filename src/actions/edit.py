@@ -36,7 +36,7 @@ class EditCFStackAction(base.AbstractAction):
             print(f"Couldn't parse due to {e}. Retrying...")
             return self.determine_edit(user_input, retries - 1)
 
-        return CloudFormationStack(new_stack, hash(user_input))
+        return CloudFormationStack(new_stack, str(hash(user_input)))
 
     def describe_changes(
         self, s1: CloudFormationStack, s2: CloudFormationStack, original_prompt: str
@@ -68,7 +68,8 @@ class EditCFStackAction(base.AbstractAction):
         the existing stack.
         """
         # 1. clean input
-        new_input = self.clean_input(input)
+        new_input = input
+        # new_input = self.clean_input(input)
 
         # 2. Determine new stack with a single gpt call to edit it
         edited_stack = self.determine_edit(new_input)

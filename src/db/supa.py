@@ -1,5 +1,5 @@
 from src.model.stack import CloudFormationStack
-import hashlib
+from include.utils import hash_str
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -35,6 +35,12 @@ class Table(StrEnum):
     CHAT_SESSIONS = "ChatSessions"
     CHATS = "Chats"
 
+
+class StackDNEException(Exception):
+    """
+    Represents cases where a stack doesn't exist in db yet
+    """
+    pass
 
 class SupaClient:
     """
@@ -93,9 +99,11 @@ class SupaClient:
             .execute()
         ).data[0]
 
+        if response[CF_STACK_COL_NAME] is None:
+            raise StackDNEException
+
         if response[STACK_NAME_COL] is None:
-            new_name = str(chat_session_id)
-            new_name = hashlib.sha256(bytes(new_name)).hexdigest()
+            new_name = hash_str(str(chat_session_id))
             print(
                 f"Name of stack with id {chat_session_id} was none. setting it to {new_name}"
             )
