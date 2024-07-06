@@ -1,6 +1,7 @@
 from typing import Any
 import json
 from . import base
+import time
 
 from src.model.stack import CloudFormationStack
 
@@ -19,6 +20,16 @@ class ConstructCFStackAction(base.AbstractAction):
     def __init__(self) -> None:
         self.stack = None
         super().__init__()
+
+    def stream_response(self, prompt):
+        """
+        Stream the response to the user instead of 1 return
+        """
+        # Simulate streaming by yielding chunks of the response
+        response = self.trigger_action(prompt)
+        for i in range(0, len(response), 10):  # Adjust the chunk size as needed
+            yield response[i:i+10]
+            time.sleep(0.1)  # Simulate delay
 
     def _extract_template(self, input: str, retries: int = 3) -> CloudFormationStack:
         """
