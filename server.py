@@ -3,6 +3,7 @@ from fastapi import FastAPI, BackgroundTasks
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.server.wrappers import query_wrapper, deploy_wrapper
 
@@ -45,4 +46,14 @@ async def deploy_async(request: DeployRequest, background_tasks: BackgroundTasks
 # Main entry point to run the server
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
+    frontend_port = int(os.getenv("FRONTEND_PORT", 8000))
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[f"http://localhost:{frontend_port}"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     uvicorn.run(app, host="0.0.0.0", port=port)
