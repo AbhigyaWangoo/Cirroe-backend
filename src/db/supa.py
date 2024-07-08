@@ -40,7 +40,9 @@ class StackDNEException(Exception):
     """
     Represents cases where a stack doesn't exist in db yet
     """
+
     pass
+
 
 class SupaClient:
     """

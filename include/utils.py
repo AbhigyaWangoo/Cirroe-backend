@@ -16,6 +16,7 @@ def prompt_with_file(
         sysprompt = fp.read()
         return client.query(prompt, sys_prompt=sysprompt, **extra_options)
 
+
 @typechecked
 def hash_str(input_string: str) -> str:
     """
@@ -25,7 +26,7 @@ def hash_str(input_string: str) -> str:
     sha256 = hashlib.sha256()
 
     # Encode the input string and update the hash object with it
-    sha256.update(input_string.encode('utf-8'))
+    sha256.update(input_string.encode("utf-8"))
 
     # Get the hexadecimal representation of the hash
     hashed_string = sha256.hexdigest()

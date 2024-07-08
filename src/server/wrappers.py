@@ -9,7 +9,10 @@ from include.llm.gpt import GPTClient
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
-def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClient) -> str:
+
+def construction_wrapper(
+    user_query: str, chat_session_id: int, client: SupaClient
+) -> str:
     """
     Constructs a stack based off user query. Persists stack in supabase and updates
     chat session state. Returns qualitative response for user.
@@ -39,7 +42,9 @@ def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClie
         )
 
 
-def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> str | None:
+def edit_wrapper(
+    user_query: str, chat_session_id: str, client: SupaClient
+) -> str | None:
     """
     Using the user query, and the cf stack retrieved from supabase with the chat
     session id, edits the cf stack and responds qualitativly to the user.
@@ -76,13 +81,15 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> s
         )
         return None
 
+
 def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
     pass
 
+
 def handle_irrelevant_query(query: str, client: GPTClient) -> str:
     """
-    Hanldes and responds to a query that isn't clearly about creating or 
-    deploying infra. If the query is asking some questions about aws, or how 
+    Hanldes and responds to a query that isn't clearly about creating or
+    deploying infra. If the query is asking some questions about aws, or how
     this thing works, then answer, else respond with a msg saying pls be specific.
     """
     response = prompt_with_file(
@@ -93,9 +100,10 @@ def handle_irrelevant_query(query: str, client: GPTClient) -> str:
 
     return response
 
+
 def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     """
-    A wrapper around a Cirrus query. Determines whether the input query is a 
+    A wrapper around a Cirrus query. Determines whether the input query is a
     construction call, or an edit call. For now, we're not allowing deployments from chat.
     """
 
@@ -108,9 +116,7 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     if state == ChatSessionState.NOT_QUERIED:
         # 2. if never been queried before, only then can this be a construction action
         response = prompt_with_file(
-            BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, 
-            user_query, 
-            client
+            BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, user_query, client
         )
 
         if response.lower() == "true":
@@ -118,7 +124,7 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
         else:
             response = handle_irrelevant_query(user_query, client)
     else:
-        # 3. if exists, can only be edit. assumes that edit action will 
+        # 3. if exists, can only be edit. assumes that edit action will
         # handle even if no edits are possible.
         if stack:
             response = edit_wrapper(user_query, chat_session_id, supa_client)

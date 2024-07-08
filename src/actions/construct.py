@@ -28,7 +28,7 @@ class ConstructCFStackAction(base.AbstractAction):
         # Simulate streaming by yielding chunks of the response
         response = self.trigger_action(prompt)
         for i in range(0, len(response), 10):  # Adjust the chunk size as needed
-            yield response[i:i+10]
+            yield response[i : i + 10]
             time.sleep(0.1)  # Simulate delay
 
     def _extract_template(self, input: str, retries: int = 3) -> CloudFormationStack:
