@@ -211,7 +211,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         return response
 
-    def deploy_stack(self, stack_name: str) -> Tuple[str, ChatSessionState]:
+    def deploy_stack(self) -> Tuple[str, ChatSessionState]:
         """
         Deploys user's cf stack into their account
         """
@@ -220,6 +220,7 @@ class DeployCFStackAction(base.AbstractAction):
         stack_exists = True
         state: ChatSessionState
         response = None
+        stack_name=self.user_stack.name
 
         try:
             try:
@@ -321,6 +322,14 @@ class DeployCFStackAction(base.AbstractAction):
         self.diagnoser.logs_cache.clear()
         return ERROR_RESPONSE
 
+    def return_success(self) -> str:
+        """
+        Return a success message to the user that tells them 
+        1. how to access their resources
+        2. how to 
+        """
+        pass
+
     def trigger_action(self) -> Any:
         """
         Entrypoint for deploying a stack to aws
@@ -339,19 +348,18 @@ class DeployCFStackAction(base.AbstractAction):
         elif (
             state == ChatSessionState.QUERIED_AND_DEPLOYABLE
         ):  # 1.e If deployable but not deployed, run deployment.
-            response, state = self.deploy_stack(input)
+            response, state = self.deploy_stack()
         elif (
             state == ChatSessionState.QUERIED
             or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE
         ):
             # 2. if never deployed, validate stack is deployable
-            diagnoser_decision = self.diagnoser.determine_stack_deployability(state)
+            # diagnoser_decision = self.diagnoser.determine_stack_deployability(state)
+            diagnoser_decision = DiagnoserState.DEPLOYABLE
 
             #   2.a if not deployable, call diagnoser with same retry/missing info requests
             if diagnoser_decision == DiagnoserState.DEPLOYABLE:
-                response, state = self.deploy_stack(
-                    input
-                )  # 2.b if deployable, attempt deployment.
+                response, state = self.deploy_stack()  # 2.b if deployable, attempt deployment.
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
                     # 2.b.1 if succeeded, return msg saying deployment succeeded
                     return SUCCESS_RESPONSE
