@@ -1,4 +1,4 @@
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Tuple
 import os
 import json
 from src.model.stack import CloudFormationStack, Dataset, NAME, PROMPT
@@ -181,8 +181,8 @@ class Extractor:
         Given a list of cf stacks, and corresponding queries, generates a dataset.
         """
         templates = self.extract_templates()
-        for i in range(10):
-            print(templates[i].name)
+        # for i in range(10):
+        #     print(templates[i].name)
 
         with open(EXAMPLES_FPATH, "r", encoding="utf8") as fp:
             gt_examples=json.load(fp)
@@ -190,3 +190,13 @@ class Extractor:
             dataset = self.get_inputs(templates, gt_examples[PROMPTS])
 
             return dataset
+
+    def split(self, dataset: Dataset, train_vs_test: float = 0.8) -> Tuple[Dataset, Dataset]:
+        """
+        Split a dataset into train and test by randomly selecting
+        values for train and test. Return both.
+        """
+        train = {}
+        test = {}
+
+        return Dataset(train), Dataset(test)

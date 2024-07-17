@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Union
 from typeguard import typechecked
 import json
 
@@ -14,6 +14,7 @@ class CloudFormationStack:
     def __init__(self, template: Dict[str, Any], name: str) -> None:
         self.name = name
         self.template = template
+@typechecked
 class Dataset:
     """
     A dataset of cloudformation stacks. Used in fine tuning.
@@ -27,11 +28,8 @@ class Dataset:
     ...
     ```
     """
-    def __init__(self, data: Dict[str, CloudFormationStack]) -> None:
+    def __init__(self, data: Union[Dict[str, CloudFormationStack], None] = None) -> None:
         self.data = data
-
-    def split(self, train_vs_test: 0.8):
-        pass
 
     def read(self, jsonl_file: str):
         """
@@ -50,20 +48,25 @@ class Dataset:
 
                 data[prompt] = stack
 
+        self.data = data
+
     def write(self, json_file: str, mode: str="w"):
         """
         Writes dataset to file.
         """
 
-        with open(json_file, mode, encoding="utf8") as fp:
-            for prompt in self.data:
-                json_obj = {
-                    PROMPT: prompt,
-                    CF_STACK_OBJ: {
-                        NAME: self.data[prompt][NAME],
-                        TEMPLATE: self.data[prompt][TEMPLATE],
+        if self.data is None:
+            print("Can't write data to file. Doesn't exist.")
+        else:    
+            with open(json_file, mode, encoding="utf8") as fp:
+                for prompt in self.data:
+                    json_obj = {
+                        PROMPT: prompt,
+                        CF_STACK_OBJ: {
+                            NAME: self.data[prompt][NAME],
+                            TEMPLATE: self.data[prompt][TEMPLATE],
+                        }
                     }
-                }
 
-                # write json_obj to jsonl output file
-                fp.write(json.dumps(json_obj) + "\n")
+                    # write json_obj to jsonl output file
+                    fp.write(json.dumps(json_obj) + "\n")

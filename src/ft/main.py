@@ -1,5 +1,9 @@
 from src.ft.extract import Extractor
+from src.model.stack import Dataset
 import argparse
+import os
+
+CURATED_DATASET_PATH = "data/generated_dataset.jsonl"
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(
@@ -11,17 +15,23 @@ if __name__ == "__main__":
     # args = parser.parse_args()
     # dataset_fpath = args.filepath
     dataset_fpath = "include/cfrepo"
-    
+
     # 1. Extract dataset from files (Extractor)
     extractor = Extractor(dataset_fpath)
-    dataset = extractor.get_dataset()
+    dataset = Dataset(None)
+    if not os.path.exists(CURATED_DATASET_PATH):
+        dataset = extractor.get_dataset()
 
-    # 2. spit dataset to json file (Extractor)
-    # dataset
+        # 2. spit dataset to json file (Extractor)
+        dataset.write(CURATED_DATASET_PATH)
+    else:
+        dataset.read(CURATED_DATASET_PATH)
 
     # 3. split into test and train (Fine tuner)
+    train, test = extractor.split(dataset)
 
     # 4. load model, dataset, and tokenize (Fine tuner)
+    
 
     # 5. Run finetune (Fine tuner)
 
