@@ -1,14 +1,14 @@
 from typing import List, Union, Dict
 import os
 import json
-from src.model.stack import CloudFormationStack, Dataset
+from src.model.stack import CloudFormationStack, Dataset, NAME, PROMPT
 from include.llm.claude import ClaudeClient
+from include.llm.gpt import GPTClient
 from include.utils import BASE_PROMPT_PATH
 from typeguard import typechecked
 
-PROMPT="prompt"
 PROMPTS=PROMPT+"s"
-NAME="name"
+
 
 SYNTHETIC_EXTRACTOR_PROMPT="extrapolate_synthetic.txt"
 EXAMPLES_FPATH="include/data/prompt_examples.json"
@@ -45,7 +45,7 @@ class Extractor:
 
         self.dataset_path = dataset_path
         self.prompts_file = prompts_file
-        self.claude_client = ClaudeClient()
+        self.claude_client = GPTClient()
 
     def extract_templates(self) -> List[CloudFormationStack]:
         """
@@ -138,7 +138,7 @@ class Extractor:
 
                     synthetic_prompt="aaa"+fname
                     if flag:
-                        synthetic_prompt = self.claude_client.query(stack_str, prompt, False)
+                        synthetic_prompt = self.claude_client.query(prompt=stack_str, sys_prompt=prompt)
                         print(synthetic_prompt)
                         print(fname)
                         flag=False
