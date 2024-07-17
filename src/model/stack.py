@@ -15,6 +15,9 @@ class Dataset:
     """
     def __init__(self, data: Dict[str, CloudFormationStack]) -> None:
         self.data = data
+    
+    def split(self, train_vs_test: 0.8):
+        pass
 
     def write(self, json_file: str, mode: str="w"):
         """

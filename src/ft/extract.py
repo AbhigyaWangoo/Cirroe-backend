@@ -1,34 +1,48 @@
-from typing import List, Union
+from typing import List, Union, Dict
 import os
 import json
 from src.model.stack import CloudFormationStack, Dataset
 from include.llm.claude import ClaudeClient
+from include.utils import BASE_PROMPT_PATH
+from typeguard import typechecked
 
-PROMPTS="prompts"
+PROMPT="prompt"
+PROMPTS=PROMPT+"s"
+NAME="name"
+
+SYNTHETIC_EXTRACTOR_PROMPT="extrapolate_synthetic.txt"
+EXAMPLES_FPATH="include/data/prompt_examples.json"
 
 class Extractor:
     """
     A data extractor. Extracts and returns a dataset to fine tune on.
     """
 
-    def __init__(self, dataset_path: str, prompts_file: Union[str, None]) -> None:
+    def __init__(self, dataset_path: str, prompts_file: Union[str, None] = None) -> None:
         """
         Assumes that the prompts file looks exactly like this:
 
-        ```
+        ```json
         {
             "prompts" : [
-                "prompt 1 corresponding to stack 1",
-                "prompt 2 corresponding to stack 2",
-                "prompt 3 corresponding to stack 3",
-                "prompt 4 corresponding to stack 4",
-                "prompt 5 corresponding to stack 5",
+                {
+                    "prompt": "prompt 1 corresponding to stack 1",
+                    "name": "name of file 1 in dataset"
+                },
+                {
+                    "prompt": "prompt 2 corresponding to stack 2",
+                    "name": "name of file 2 in dataset"
+                },
+                {
+                    "prompt": "prompt 3 corresponding to stack 3",
+                    "name": "name of file 3 in dataset"
+                },
                 ...
             ]
         }
         ```
-        
         """
+
         self.dataset_path = dataset_path
         self.prompts_file = prompts_file
         self.claude_client = ClaudeClient()
@@ -51,13 +65,43 @@ class Extractor:
                             continue
         return templates
 
-    def synthetic_generator(self, stacks: List[CloudFormationStack], gt_examples: List[str]):
+    @typechecked
+    def synthetic_generator(self,
+                            stacks: Dict[str, CloudFormationStack],
+                            gt_examples: List[Dict[str,str]]) -> Dict[str, CloudFormationStack]:
         """
         Generates prompts via a gpt-4o call. If n = len(gt_examples), and m = len(stacks), 
         then the first n stacks have a corresponding prompt already provided as a ground 
         truth to be used for the remaining m - n stacks.
-        
+
         Assumes that m > n, always.
+        
+        stacks:
+        ```json
+        {
+            "Portfolio.json": <stack>,
+            "Product.json": <stack>,
+            "compliant-bucket.json": <stack>
+        }
+        ```
+
+        gt_examples: 
+        ```json
+        [
+            {
+                "prompt": "Can you create a Service Catalog portfolio called Test_Portfolio? The dept is 1234, and the account id of the child aws account is 1234567890",
+                "name": "Portfolio.json"
+            },
+            {
+                "prompt": "Create an AWS CloudFormation template for a Service Catalog Product, the distributor should be 'App Vendor', and the support email 'https://www.support.example.com'",
+                "name": "Product.json"
+            },
+            {
+                "prompt": "Can you create an AWS CloudFormation template for an S3 bucket with server-side encryption, versioning enabled, and all public access blocked? The bucket should also have replication to another bucket and logging enabled.",
+                "name": "compliant-bucket.json"
+            },
+        ]
+        ```
         """
 
         n = len(gt_examples)
@@ -66,45 +110,69 @@ class Extractor:
         if m == n:
             return
 
-        prompt = "" # TODO load this from a file
-        i=0
+        prompt_to_stack_mapping={}
 
-        while i < n:
-            few_shot_prompt = f"""
-            prompt: {gt_examples[i]}
-            cloud formation template: {stacks[i]}
-            
-            """
+        with open(BASE_PROMPT_PATH + SYNTHETIC_EXTRACTOR_PROMPT, "r", encoding="utf8") as fp:
+            prompt = fp.read()
+            i=0
+            covered_fnames = set()
 
-            prompt += few_shot_prompt
-            i += 1
+            while i < n:
+                prompt_example = gt_examples[i][PROMPT]
+                file_name = gt_examples[i][NAME]
+                covered_fnames.add(file_name)
 
-        while i < m:
-            stack_str = json.dumps(stacks[i])
-            synthetic_prompt = self.claude_client.query(stack_str, prompt, False)
-            gt_examples.append(synthetic_prompt)
+                few_shot_prompt = f"""
+                prompt: {prompt_example}
+                cloud formation template: {stacks[file_name].template}
+                """
 
-        return gt_examples
+                prompt_to_stack_mapping[prompt_example] = stacks[file_name]
+                prompt += few_shot_prompt
+                i += 1
 
-    def get_inputs(self, stacks: List[CloudFormationStack]):
+            flag=True
+            for fname in stacks:
+                if fname not in covered_fnames:
+                    stack_str = json.dumps(stacks[fname].template)
+
+                    synthetic_prompt="aaa"+fname
+                    if flag:
+                        synthetic_prompt = self.claude_client.query(stack_str, prompt, False)
+                        print(synthetic_prompt)
+                        print(fname)
+                        flag=False
+
+                    prompt_to_stack_mapping[synthetic_prompt] = stacks[fname]
+
+        return prompt_to_stack_mapping
+
+    @typechecked
+    def get_inputs(self, stacks: List[CloudFormationStack], gt_examples: List[Dict[str,str]]) -> Dataset:
         """
         Given a list of cf stacks, bundles it into a Dataset object.
         """
-
-        data_dict = {}
-
-        if self.prompts_file is not None:
+        stack_dict = {stack.name: stack for stack in stacks}
+        if self.prompts_file is None:
             # need to synthetically generate it
-            pass
-        else:
-            with open(self.prompts_file, "r", encoding="utf8") as fp:
-                prompts_obj = json.load(fp)
-                prompt_list = prompts_obj[PROMPTS]
-                idx = 0
+            dataset = self.synthetic_generator(stack_dict, gt_examples)
+            print("synthetically generating")
+            # print(dataset.keys())
+            return Dataset(dataset)
 
-                while idx < len(prompt_list):
-                    data_dict[prompt_list[idx]] = stacks[idx]
-                    idx += 1
+        # prompts already exist from before.
+        print("prompt exists from before")
+        data_dict = {}
+        prompt_list: List[str]
+        idx = 0
+        with open(self.prompts_file, "r", encoding="utf8") as fp:
+            prompts_obj = json.load(fp)
+            prompt_list = prompts_obj[PROMPTS]
+
+        while idx < len(prompt_list):
+            file_name = prompt_list[idx][NAME]
+            data_dict[prompt_list[idx][PROMPT]] = stack_dict[file_name]
+            idx += 1
 
         return Dataset(data_dict)
 
@@ -116,4 +184,9 @@ class Extractor:
         for i in range(10):
             print(templates[i].name)
 
-        # dataset = self.get_inputs(templates)
+        with open(EXAMPLES_FPATH, "r", encoding="utf8") as fp:
+            gt_examples=json.load(fp)
+
+            dataset = self.get_inputs(templates, gt_examples[PROMPTS])
+
+            return dataset

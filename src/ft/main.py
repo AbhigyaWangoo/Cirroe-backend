@@ -2,20 +2,22 @@ from src.ft.extract import Extractor
 import argparse
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-                    prog='Finetuner',
-                    description='finetunes a model and evaluates it against gpt4 and claude sonnet')
-    parser.add_argument('-f', '--filepath',
-                    action='store_true')  # on/off flag
+    # parser = argparse.ArgumentParser(
+    #                 prog='Finetuner',
+    #                 description='finetunes a model and evaluates it against gpt4 and claude sonnet')
+    # parser.add_argument('-f', '--filepath',
+    #                 action='store_true')  # on/off flag
 
-    args = parser.parse_args()
-    dataset_fpath = args.filepath
+    # args = parser.parse_args()
+    # dataset_fpath = args.filepath
+    dataset_fpath = "include/cfrepo"
     
     # 1. Extract dataset from files (Extractor)
     extractor = Extractor(dataset_fpath)
-    extractor.
+    dataset = extractor.get_dataset()
 
     # 2. spit dataset to json file (Extractor)
+    # dataset
 
     # 3. split into test and train (Fine tuner)
 
