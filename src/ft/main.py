@@ -1,4 +1,6 @@
 from src.ft.extract import Extractor
+from src.ft.fine_tune import PredibaseFineTuner
+
 from src.model.stack import Dataset
 import argparse
 import os
@@ -30,10 +32,11 @@ if __name__ == "__main__":
     # 3. split into test and train (Fine tuner)
     train, test = extractor.split(dataset)
 
-    # 4. load model, dataset, and tokenize (Fine tuner)
-    
+    # 4. load model, train, and tokenize (Fine tuner)
+    pft = PredibaseFineTuner(train)
 
     # 5. Run finetune (Fine tuner)
+    adapter = pft.finetune()
 
     # 6. If enabled, run evaluation (Evaluate)
 
