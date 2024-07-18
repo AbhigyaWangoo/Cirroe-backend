@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Any, Union
 import json
 from . import base
 
 from src.model.stack import CloudFormationStack
+from include.llm.base import AbstractLLMClient
 
 from include.utils import prompt_with_file, BASE_PROMPT_PATH
 
@@ -13,11 +14,13 @@ VERIFY_CONSTRUCTED_STACK = "verify_stack.txt"
 
 class ConstructCFStackAction(base.AbstractAction):
     """
-    an action to construct a cf stack template
+    An action to construct a cf stack template. Can optionally provide a 
+    test_client to test different models.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, test_client: Union[AbstractLLMClient, None] = None) -> None:
         self.stack = None
+        self.test_client = test_client
         super().__init__()
 
     def _extract_template(self, input: str, retries: int = 3) -> CloudFormationStack:
@@ -25,10 +28,13 @@ class ConstructCFStackAction(base.AbstractAction):
         helper fn to extract a cf template from an input
         """
         try:
+            if self.test_client is None:
+                self.test_client = self.claude_client
+
             cf_json = prompt_with_file(
                 BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT,
                 input,
-                self.claude_client,
+                self.test_client,
                 is_json=True,
             )
         except Exception as e:

@@ -1,5 +1,9 @@
 from src.ft.extract import Extractor
 from src.ft.fine_tune import PredibaseFineTuner
+from src.ft.evaluate import Evaluator
+
+from include.llm.claude import ClaudeClient
+from include.llm.gpt import GPTClient
 
 from src.model.stack import Dataset
 import argparse
@@ -14,8 +18,10 @@ if __name__ == "__main__":
     # parser.add_argument('-f', '--filepath',
     #                 action='store_true')  # on/off flag
 
+
     # args = parser.parse_args()
     # dataset_fpath = args.filepath
+    evaluate=False
     dataset_fpath = "include/cfrepo"
 
     # 1. Extract dataset from files (Extractor)
@@ -39,9 +45,19 @@ if __name__ == "__main__":
     adapter = pft.finetune()
 
     # 6. If enabled, run evaluation (Evaluate)
+    if evaluate:
+        # 6.a generate predictions with gpt4 + construct action (Evaluate)
+        # 6.b generate predictions with claude + construct action (Evaluate)
+        # 6.c generate predictions with ft model + construct action (Evaluate)
+        evaluator = Evaluator(
+            [
+                adapter,
+                GPTClient(),
+                ClaudeClient()
+            ],
+            test
+        )
 
-    #   6.a generate predictions with gpt4 + construct action (Evaluate)
-
-    #   6.b generate predictions with claude + construct action (Evaluate)
-
-    #   6.c generate predictions with ft model + construct action (Evaluate)
+        result = evaluator.evaluate()
+        
+        result.save_results("include/data/evaluation_results.txt")
