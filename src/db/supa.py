@@ -6,6 +6,8 @@ from supabase import create_client, Client
 from supabase.client import ClientOptions
 from enum import Enum, StrEnum
 
+from typing import Tuple
+
 # DB Column names
 CF_STACK_COL_NAME = "CirrusTemplate"
 STATE_COL_NAME = "State"
@@ -166,3 +168,15 @@ class SupaClient:
         )
 
         return ChatSessionState[response.data[0][STATE_COL_NAME]]
+
+    def get_user_aws_creds(self) -> Tuple[str, str]:
+        """
+        Returns the user's aws credentials in the following format:
+        aws_secret_key, aws_access_key_id
+        
+        TODO as of now this just returns mine. Need to alter to provide 
+        user supplied aws creds.
+        """
+        secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
+        access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
+        return secret, access

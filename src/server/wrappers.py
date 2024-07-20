@@ -1,5 +1,6 @@
 from src.actions.construct import ConstructCFStackAction
 from src.actions.edit import EditCFStackAction
+from src.actions.deploy import DeployCFStackAction
 from src.db.supa import SupaClient, ChatSessionState, StackDNEException
 from src.model.stack import CloudFormationStack
 
@@ -77,7 +78,24 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> s
         return None
 
 def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
-    pass
+    """
+    A wrapper around the deployment action. Allows us to deploy a 
+    cf stack from the user.
+    """
+    supa_client = SupaClient(user_id)
+
+    # 1. Get the following info
+    # user_stack: CloudFormationStack,
+    user_stack = supa_client.get_cf_stack(chat_session_id)
+    # chat_session_id: int,
+    # state_manager: SupaClient,
+    user_aws_secret_key, user_aws_access_key_id = supa_client.get_user_aws_creds()
+
+    deployment_action = DeployCFStackAction(user_stack, chat_session_id, supa_client, user_aws_secret_key, user_aws_access_key_id)
+
+    # 2. Attempt deployment, return trigger_action response
+    return deployment_action.trigger_action()
+
 
 def handle_irrelevant_query(query: str, client: GPTClient) -> str:
     """
@@ -114,6 +132,7 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
         )
 
         if response.lower() == "true":
+            print("Need to construct")
             response = construction_wrapper(user_query, chat_session_id, supa_client)
         else:
             response = handle_irrelevant_query(user_query, client)

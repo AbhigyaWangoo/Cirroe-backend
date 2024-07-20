@@ -201,6 +201,7 @@ class DeployCFStackAction(base.AbstractAction):
         """
 
         # TODO also use self.diagnoser.logs_cache to check exactly what is needed.
+        # TODO also check outputs if any and include as context
         response = prompt_with_file(
             BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, prompt, self.gpt_client
         )
@@ -319,6 +320,7 @@ class DeployCFStackAction(base.AbstractAction):
 
         # At this point, we're cooked. So going to relinquish the log cache.
         self.diagnoser.logs_cache.clear()
+        print("Couldn't diagnose error properly. Returning complete failure response.")
         return ERROR_RESPONSE
 
     def trigger_action(self) -> Any:
