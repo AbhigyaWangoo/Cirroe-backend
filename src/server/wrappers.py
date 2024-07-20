@@ -1,8 +1,8 @@
-from src.actions.construct import ConstructCFStackAction
+from src.actions.construct import ConstructTFConfigAction
 from src.actions.edit import EditCFStackAction
 from src.actions.deploy import DeployCFStackAction
 from src.db.supa import SupaClient, ChatSessionState, StackDNEException
-from src.model.stack import CloudFormationStack
+from src.model.stack import TerraformConfig
 
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 from include.llm.gpt import GPTClient
@@ -12,19 +12,19 @@ IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClient) -> str:
     """
-    Constructs a stack based off user query. Persists stack in supabase and updates
+    Constructs a terraform config based off user query. Persists config in supabase and updates
     chat session state. Returns qualitative response for user.
 
-    todo Caches ChatSession stack in mem and disk for further use.
+    todo Caches ChatSession config in mem and disk for further use.
     Caches user supa client connection in mem.
     """
-    action = ConstructCFStackAction()
+    action = ConstructTFConfigAction()
 
     try:
         action_response = action.trigger_action(user_query)
-        stack = action.stack
+        stack = action.tf_config
 
-        client.edit_entire_cf_stack(chat_session_id, stack)
+        client.edit_entire_tf_config(chat_session_id, stack)
 
         # TODO add cloudformation stack linter to see if
         # the stack is deployable, and update the state as such
@@ -33,7 +33,7 @@ def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClie
         return action_response
     except Exception as e:
         print(
-            f"Failed to construct cf stack for user. \nUser request: {user_query} \n\nError: {e}"
+            f"Failed to construct tf config for user. \nUser request: {user_query} \n\nError: {e}"
         )
         client.update_chat_session_state(
             chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
@@ -61,7 +61,7 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> s
         print(new_stack)
 
         # 4. persist new stack in supa
-        client.edit_entire_cf_stack(chat_session_id, new_stack)
+        client.edit_entire_tf_config(chat_session_id, new_stack)
         client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
 
         return action_result
@@ -120,7 +120,7 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     # 1. Get state.
     supa_client = SupaClient(user_id)
     client = GPTClient()
-    stack: CloudFormationStack | None = None
+    stack: TerraformConfig | None = None
 
     state = supa_client.get_chat_session_state(chat_session_id)
     if state == ChatSessionState.NOT_QUERIED:

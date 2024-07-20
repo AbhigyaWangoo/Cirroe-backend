@@ -2,7 +2,7 @@ from typing import Any
 from . import base
 import json
 
-from src.model.stack import CloudFormationStack
+from src.model.stack import TerraformConfig
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 
 EDIT_STACK_PROMPT = "edit_stack.txt"
@@ -14,12 +14,12 @@ class EditCFStackAction(base.AbstractAction):
     An action to edit the provided stack
     """
 
-    def __init__(self, stack_to_edit: CloudFormationStack) -> None:
+    def __init__(self, stack_to_edit: TerraformConfig) -> None:
         super().__init__()
         self.stack_to_edit = stack_to_edit
         self.new_stack = None
 
-    def determine_edit(self, user_input: str, retries: int = 3) -> CloudFormationStack:
+    def determine_edit(self, user_input: str, retries: int = 3) -> TerraformConfig:
         """
         Alter the stack_to_edit with the provided user input, and return the new stack.
         """
@@ -36,10 +36,10 @@ class EditCFStackAction(base.AbstractAction):
             print(f"Couldn't parse due to {e}. Retrying...")
             return self.determine_edit(user_input, retries - 1)
 
-        return CloudFormationStack(new_stack, str(hash(user_input)))
+        return TerraformConfig(new_stack, str(hash(user_input)))
 
     def describe_changes(
-        self, s1: CloudFormationStack, s2: CloudFormationStack, original_prompt: str
+        self, s1: TerraformConfig, s2: TerraformConfig, original_prompt: str
     ) -> str:
         """
         An appropriate response to the user regarding the edit they've made.

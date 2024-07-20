@@ -8,10 +8,10 @@ PROMPT="prompt"
 CF_STACK_OBJ="cf_stack_obj"
 
 @typechecked
-class CloudFormationStack:
-    """A wrapper around a cf stack template"""
+class TerraformConfig:
+    """A wrapper around a terraform config"""
 
-    def __init__(self, template: Dict[str, Any], name: str) -> None:
+    def __init__(self, template: str, name: str) -> None:
         self.name = name
         self.template = template
 @typechecked
@@ -28,7 +28,7 @@ class Dataset:
     ...
     ```
     """
-    def __init__(self, data: Union[Dict[str, CloudFormationStack], None] = None) -> None:
+    def __init__(self, data: Union[Dict[str, TerraformConfig], None] = None) -> None:
         self.data = data
 
     def read(self, jsonl_file: str):
@@ -44,7 +44,7 @@ class Dataset:
 
                 stack_name = cf_stack[NAME]
                 stack_template = cf_stack[TEMPLATE]
-                stack = CloudFormationStack(stack_template, stack_name)
+                stack = TerraformConfig(stack_template, stack_name)
 
                 data[prompt] = stack
 

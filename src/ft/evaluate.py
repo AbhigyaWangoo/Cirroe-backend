@@ -1,4 +1,4 @@
-from src.actions.construct import ConstructCFStackAction
+from src.actions.construct import ConstructTFConfigAction
 from src.model.stack import Dataset
 from include.llm.base import AbstractLLMClient
 from typing import List

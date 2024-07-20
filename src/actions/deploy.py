@@ -4,7 +4,7 @@ import boto3
 from . import base
 from collections import deque
 
-from src.model.stack import CloudFormationStack
+from src.model.stack import TerraformConfig
 from src.db.supa import SupaClient, ChatSessionState
 
 from include.llm.base import AbstractLLMClient
@@ -62,7 +62,7 @@ class Diagnoser:
 
     def __init__(
         self,
-        stack: CloudFormationStack,
+        stack: TerraformConfig,
         cf_client: boto3.session.Session.client,
         llm_client: AbstractLLMClient,
         log_cache_limit=LOG_LIMIT,
@@ -72,7 +72,7 @@ class Diagnoser:
         self.logs_cache = deque(maxlen=log_cache_limit)
         self.llm_client = llm_client
 
-    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
+    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> TerraformConfig:
         """
         A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
         Returns the fixed stack.
@@ -107,7 +107,7 @@ class Diagnoser:
                 raise CFStackRequiresUserInfoException
 
             print(f"Fixed stack: {json.dumps(response)}")
-            return CloudFormationStack(response, self.stack.name)
+            return TerraformConfig(response, self.stack.name)
 
         raise DeploymentBrokenException
 
@@ -162,7 +162,7 @@ class DeployCFStackAction(base.AbstractAction):
 
     def __init__(
         self,
-        user_stack: CloudFormationStack,
+        user_stack: TerraformConfig,
         chat_session_id: int,
         state_manager: SupaClient,
         user_aws_secret_key: str,
