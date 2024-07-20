@@ -38,7 +38,7 @@ class Table(StrEnum):
     CHATS = "Chats"
 
 
-class StackDNEException(Exception):
+class TFConfigDNEException(Exception):
     """
     Represents cases where a stack doesn't exist in db yet
     """
@@ -89,9 +89,9 @@ class SupaClient:
 
         return response
 
-    def get_cf_stack(self, chat_session_id: int) -> TerraformConfig:
+    def get_tf_config(self, chat_session_id: int) -> TerraformConfig:
         """
-        Given the chat session id, get the cf stack.
+        Given the chat session id, get the tf config.
         """
 
         response = (
@@ -102,7 +102,7 @@ class SupaClient:
         ).data[0]
 
         if response[TF_CONFIG_COL_NAME] is None:
-            raise StackDNEException
+            raise TFConfigDNEException
 
         if response[STACK_NAME_COL] is None:
             new_name = hash_str(str(chat_session_id))

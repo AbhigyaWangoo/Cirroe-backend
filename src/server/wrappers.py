@@ -1,7 +1,7 @@
 from src.actions.construct import ConstructTFConfigAction
-from src.actions.edit import EditCFStackAction
+from src.actions.edit import EditTFConfigAction
 from src.actions.deploy import DeployCFStackAction
-from src.db.supa import SupaClient, ChatSessionState, StackDNEException
+from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException
 from src.model.stack import TerraformConfig
 
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
@@ -40,7 +40,7 @@ def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClie
         )
 
 
-def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> str | None:
+def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig) -> str | None:
     """
     Using the user query, and the cf stack retrieved from supabase with the chat
     session id, edits the cf stack and responds qualitativly to the user.
@@ -49,23 +49,20 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient) -> s
     """
 
     try:
-        # 1. retrieve stack with chat session id
-        stack = client.get_cf_stack(chat_session_id)
-
         # 2. construct edit action
-        action = EditCFStackAction(stack)
+        action = EditTFConfigAction(config)
 
         # 3. trigger action
         action_result = action.trigger_action(user_query)
-        new_stack = action.new_stack
-        print(new_stack)
+        new_config = action.new_config
+        print(new_config)
 
         # 4. persist new stack in supa
-        client.edit_entire_tf_config(chat_session_id, new_stack)
+        client.edit_entire_tf_config(chat_session_id, new_config)
         client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
 
         return action_result
-    except StackDNEException:
+    except TFConfigDNEException:
         print("Stack dne yet. Edit wrapper incorrect.")
         return None
     except Exception as e:
@@ -86,7 +83,7 @@ def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
 
     # 1. Get the following info
     # user_stack: CloudFormationStack,
-    user_stack = supa_client.get_cf_stack(chat_session_id)
+    user_stack = supa_client.get_tf_config(chat_session_id)
     # chat_session_id: int,
     # state_manager: SupaClient,
     user_aws_secret_key, user_aws_access_key_id = supa_client.get_user_aws_creds()
@@ -139,10 +136,16 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     else:
         # 3. if exists, can only be edit. assumes that edit action will 
         # handle even if no edits are possible.
+
+        if not stack:
+            stack = supa_client.get_tf_config(chat_session_id)
+
         if stack:
-            response = edit_wrapper(user_query, chat_session_id, supa_client)
+            response = edit_wrapper(user_query, chat_session_id, supa_client, stack)
 
             if response is None:
                 response = handle_irrelevant_query(user_query, client)
+        else:
+            print("State was not NOT_QUERIED, but stack dne.")
 
     return response
