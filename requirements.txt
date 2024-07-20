@@ -9,3 +9,4 @@ anthropic
 fastapi
 uvicorn
 predibase
+python-terraform

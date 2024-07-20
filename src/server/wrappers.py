@@ -1,8 +1,9 @@
 from src.actions.construct import ConstructTFConfigAction
 from src.actions.edit import EditTFConfigAction
-from src.actions.deploy import DeployCFStackAction
+from src.actions.deploy import DeployTFConfigAction
 from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException
 from src.model.stack import TerraformConfig
+import os
 
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 from include.llm.gpt import GPTClient
@@ -79,20 +80,29 @@ def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
     A wrapper around the deployment action. Allows us to deploy a 
     cf stack from the user.
     """
-    supa_client = SupaClient(user_id)
 
     # 1. Get the following info
-    # user_stack: CloudFormationStack,
-    user_stack = supa_client.get_tf_config(chat_session_id)
-    # chat_session_id: int,
-    # state_manager: SupaClient,
-    user_aws_secret_key, user_aws_access_key_id = supa_client.get_user_aws_creds()
+    supa_client = SupaClient(user_id)
+    user_config = supa_client.get_tf_config(chat_session_id)
+    # user_aws_secret_key, user_aws_access_key_id = supa_client.get_user_aws_creds()
 
-    deployment_action = DeployCFStackAction(user_stack, chat_session_id, supa_client, user_aws_secret_key, user_aws_access_key_id)
+    # 2. Setup config in tmp dir titled by the name
+    dir_path = os.path.join("include/data/", f"{str(chat_session_id)}.tf")
+    print(dir_path)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    # Create the file path
+    file_path = os.path.join(dir_path, user_config.name)
+
+    # Write the content to the file
+    with open(file_path, 'w', encoding="utf8") as file:
+        file.write(user_config.template)
+
+    deployment_action = DeployTFConfigAction(user_config, chat_session_id, supa_client, dir_path)
 
     # 2. Attempt deployment, return trigger_action response
     return deployment_action.trigger_action()
-
 
 def handle_irrelevant_query(query: str, client: GPTClient) -> str:
     """
