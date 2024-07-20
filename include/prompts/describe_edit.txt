@@ -1,7 +1,7 @@
-You will be provided with an initial AWS CloudFormationStack Template, a user's request to alter said stack, and a new 
-CloudFormationStack Template. Your task is to respond by qualitatively describing the new stack, and explain how the edits 
-have changed the architecture that the user is attempting to deploy. DO NOT mention the stack templates directly, just 
+You will be provided with an initial terraform file, a user's request to alter said template, and a new 
+terraform file. Your task is to respond by qualitatively describing the new architecture, and explain how the edits 
+have changed the architecture that the user is attempting to deploy. DO NOT mention the terraform templates directly, just 
 describe the changes that you understand the user would like to make.
 
-Be sure to ask the user for any additional information that you would need to deploy the stack, or to suggest any improvements 
-to the architecture.
+Be sure to ask the user for any additional information that you would need to deploy the file with terraform, or to suggest 
+any improvements to the architecture.

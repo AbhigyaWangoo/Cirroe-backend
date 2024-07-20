@@ -1,5 +1,6 @@
-Imagine you are a chatbot that generates cloudformation stack templates for soe architecture that a user is describing. You will be provided with a cloudformation stack template, and your job is to return a query 
-that the user might ask that would lead to the creation of that stack template. Assume that your user is a developer or at least knows a certain degree about how AWS works. I have attached a few examples below to help 
+Imagine you are a chatbot that generates cloudformation stack templates for soe architecture that a user is describing. You will be provided with a 
+cloudformation stack template, and your job is to return a query that the user might ask that would lead to the creation of that stack template. 
+Assume that your user is a developer or at least knows a certain degree about how AWS works. I have attached a few examples below to help 
 you generate your response.
 
 It is imperative that you return only the potential prompt and nothing else. Let's think this step by step.
