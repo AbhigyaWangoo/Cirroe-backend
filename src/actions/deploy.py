@@ -28,6 +28,7 @@ NO_INPUT_YET_RESPONSE = "I don't think you've given me any specifications yet. P
 ERROR_RESPONSE = (
     "Awe man, looks like something failed with the deployment. Please contact support."
 )
+DESTROY_SUCCESS="Successfully destroyed and cleaned up your resources."
 
 
 class DiagnoserState(Enum):
@@ -76,6 +77,10 @@ class Diagnoser:
         A helper fn to fix a broken config. Assumes that the provided config is broken as is.
         Returns the fixed config.
         """
+
+        if len(self.logs_cache) == 0:
+            print("no deployments attempted. Returning og stack.")
+            return self.config
 
         prompt = f"""
             Terraform config:
@@ -185,9 +190,10 @@ class DeployTFConfigAction(base.AbstractAction):
         self.user_config = user_config
         self.state_manager = state_manager
         self.chat_session_id = chat_session_id
-        self.diagnoser = Diagnoser(self.user_config, self.gpt_client)
+        self.diagnoser = Diagnoser(self.user_config, self.claude_client)
 
         self.tf_client = Terraform(working_dir=tf_file_dir)
+        self.tf_client.init()
         self.tf_file_dir = tf_file_dir
 
     def request_deployment_info(self) -> str:
@@ -216,20 +222,20 @@ class DeployTFConfigAction(base.AbstractAction):
 
         return response
 
-    def destroy(self):
+    def destroy(self) -> str:
         """
         Destroys the failed config deployed by self.tf_client
         """
         print("Destroying the failed configuration...")
-        return_code, destroy_stdout, destroy_stderr = self.tf_client.destroy(
+        return_code, _, destroy_stderr = self.tf_client.destroy(
             force=True, capture_output=True, raise_on_error=False
         )
         if return_code != 0:
-            print("Terraform destroy failed.")
             self.diagnoser.logs_cache.append(destroy_stderr)
-            self.diagnoser.logs_cache.append(destroy_stdout)
+            # self.diagnoser.logs_cache.append(destroy_stdout)
+            return destroy_stderr
 
-        print("Terraform destroy completed successfully.")
+        return DESTROY_SUCCESS
 
     def deploy_config(self) -> Tuple[str, ChatSessionState]:
         """
@@ -242,12 +248,9 @@ class DeployTFConfigAction(base.AbstractAction):
         try:
             # 1. TODO if the template doesn't exist at the dir path, load it in with the supa client
 
-            return_code, plan_stdout, plan_stderr = self.tf_client.plan(
-                capture_output=True
-            )
-            if return_code != 0:
-                self.diagnoser.logs_cache.append(plan_stderr)
-                self.diagnoser.logs_cache.append(plan_stdout)
+            # self.tf_client.plan(
+            #     capture_output=True
+            # )
 
             # Marking the deployment as in progress
             state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
@@ -256,13 +259,14 @@ class DeployTFConfigAction(base.AbstractAction):
             )
 
             # Apply the changes and capture the output
-            return_code, apply_stdout, apply_stderr = self.tf_client.apply(
+            return_code, _, apply_stderr = self.tf_client.apply(
                 skip_plan=True, capture_output=True, raise_on_error=False
             )
 
             if return_code != 0:
                 print("Terraform apply failed.")
-                self.diagnoser.logs_cache.append(apply_stdout)
+                print(apply_stderr)
+                # self.diagnoser.logs_cache.append(apply_stdout)
                 self.diagnoser.logs_cache.append(apply_stderr)
                 raise DeploymentBrokenException
 

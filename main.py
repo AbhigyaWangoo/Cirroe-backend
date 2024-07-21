@@ -49,6 +49,14 @@
 
 # ex.get_dataset()
 
-from src.actions.construct import ConstructTFConfigAction
+from src.actions.deploy import DeployTFConfigAction
+from src.db.supa import SupaClient
+import os
 
-action = ConstructTFConfigAction()
+c = SupaClient(3)
+config = c.get_tf_config(10)
+
+secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
+access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
+
+action = DeployTFConfigAction(config, 10, c, secret, access, "testdir")

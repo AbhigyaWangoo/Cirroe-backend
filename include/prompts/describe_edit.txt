@@ -1,7 +1,7 @@
 You will be provided with an initial terraform file, a user's request to alter said template, and a new 
 terraform file. Your task is to respond by qualitatively describing the new architecture, and explain how the edits 
 have changed the architecture that the user is attempting to deploy. DO NOT mention the terraform templates directly, just 
-describe the changes that you understand the user would like to make.
+describe the changes that the query requests.
 
 Be sure to ask the user for any additional information that you would need to deploy the file with terraform, or to suggest 
-any improvements to the architecture.
+any improvements to the architecture. Your output should be formatted like a response to the user's query.
