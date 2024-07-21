@@ -227,12 +227,9 @@ class DeployTFConfigAction(base.AbstractAction):
         Destroys the failed config deployed by self.tf_client
         """
         print("Destroying the failed configuration...")
-        return_code, _, destroy_stderr = self.tf_client.destroy(
-            force=True, capture_output=True, raise_on_error=False
-        )
+        return_code, _, destroy_stderr = self.tf_client.cmd("destroy", "-auto-approve")
         if return_code != 0:
             self.diagnoser.logs_cache.append(destroy_stderr)
-            # self.diagnoser.logs_cache.append(destroy_stdout)
             return destroy_stderr
 
         return DESTROY_SUCCESS
