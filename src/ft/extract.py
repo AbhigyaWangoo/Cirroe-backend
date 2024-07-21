@@ -1,7 +1,7 @@
 from typing import List, Union, Dict, Tuple
 import os
 import json
-from src.model.stack import CloudFormationStack, Dataset, NAME, PROMPT
+from src.model.stack import TerraformConfig, Dataset, NAME, PROMPT
 from include.llm.claude import ClaudeClient
 from include.llm.gpt import GPTClient
 from include.utils import BASE_PROMPT_PATH
@@ -47,7 +47,7 @@ class Extractor:
         self.prompts_file = prompts_file
         self.claude_client = GPTClient()
 
-    def extract_templates(self) -> List[CloudFormationStack]:
+    def extract_templates(self) -> List[TerraformConfig]:
         """
         Extracts a list of templates from the provided directory. Assumes that the directory 
         files that end with .json are valid, disregards all others.
@@ -60,15 +60,15 @@ class Extractor:
                     with open(os.path.join(root, file), 'r') as f:
                         try:
                             template = json.load(f)
-                            templates.append(CloudFormationStack(template, file))
+                            templates.append(TerraformConfig(template, file))
                         except json.JSONDecodeError:
                             continue
         return templates
 
     @typechecked
     def synthetic_generator(self,
-                            stacks: Dict[str, CloudFormationStack],
-                            gt_examples: List[Dict[str,str]]) -> Dict[str, CloudFormationStack]:
+                            stacks: Dict[str, TerraformConfig],
+                            gt_examples: List[Dict[str,str]]) -> Dict[str, TerraformConfig]:
         """
         Generates prompts via a gpt-4o call. If n = len(gt_examples), and m = len(stacks), 
         then the first n stacks have a corresponding prompt already provided as a ground 
@@ -148,7 +148,7 @@ class Extractor:
         return prompt_to_stack_mapping
 
     @typechecked
-    def get_inputs(self, stacks: List[CloudFormationStack], gt_examples: List[Dict[str,str]]) -> Dataset:
+    def get_inputs(self, stacks: List[TerraformConfig], gt_examples: List[Dict[str,str]]) -> Dataset:
         """
         Given a list of cf stacks, bundles it into a Dataset object.
         """

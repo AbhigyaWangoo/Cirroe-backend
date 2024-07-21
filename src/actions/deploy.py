@@ -1,10 +1,11 @@
 from typing import Any, Tuple, List
 import json
 import boto3
+from python_terraform import *
 from . import base
 from collections import deque
 
-from src.model.stack import CloudFormationStack
+from src.model.stack import TerraformConfig
 from src.db.supa import SupaClient, ChatSessionState
 
 from include.llm.base import AbstractLLMClient
@@ -17,7 +18,7 @@ NUM_RETRIES = 3
 LOG_LIMIT = 100
 
 REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
-VERIFY_CONSTRUCTED_STACK = "verify_stack.txt"
+VERIFY_CONSTRUCTED_CONFIG = "verify_config.txt"
 
 # Ret messages
 REDPLOYMENT_RESPONSE = "Looks like you already have attempted to deploy this infra before. Try opening up a new one."
@@ -27,11 +28,12 @@ NO_INPUT_YET_RESPONSE = "I don't think you've given me any specifications yet. P
 ERROR_RESPONSE = (
     "Awe man, looks like something failed with the deployment. Please contact support."
 )
+DESTROY_SUCCESS="Successfully destroyed and cleaned up your resources."
 
 
 class DiagnoserState(Enum):
     """
-    Represents whether or not the stack is ready for deployment
+    Represents whether or not the config is ready for deployment
     """
 
     DEPLOYABLE = 0
@@ -39,9 +41,9 @@ class DiagnoserState(Enum):
     OTHER = 2
 
 
-class CFStackRequiresUserInfoException(Exception):
+class TFConfigRequiresUserInfoException(Exception):
     """
-    An exception that marks cases where stacks cannot be fixed in any capacity
+    An exception that marks cases where configs cannot be fixed in any capacity
     """
 
     pass
@@ -57,30 +59,32 @@ class DeploymentBrokenException(Exception):
 
 class Diagnoser:
     """
-    A class that intakes a cf stack, and diagnoses what is or isn't wrong with the template.
+    A class that intakes a tf config, and diagnoses what is or isn't wrong with the template.
     """
 
     def __init__(
         self,
-        stack: CloudFormationStack,
-        cf_client: boto3.session.Session.client,
+        config: TerraformConfig,
         llm_client: AbstractLLMClient,
         log_cache_limit=LOG_LIMIT,
     ) -> None:
-        self.stack = stack
-        self.cf_client = cf_client
+        self.config = config
         self.logs_cache = deque(maxlen=log_cache_limit)
         self.llm_client = llm_client
 
-    def fix_broken_stack(self, diagnosed_issue: DiagnoserState) -> CloudFormationStack:
+    def fix_broken_config(self, diagnosed_issue: DiagnoserState) -> TerraformConfig:
         """
-        A helper fn to fix a broken stack. Assumes that the provided stack is broken as is.
-        Returns the fixed stack.
+        A helper fn to fix a broken config. Assumes that the provided config is broken as is.
+        Returns the fixed config.
         """
 
+        if len(self.logs_cache) == 0:
+            print("no deployments attempted. Returning og stack.")
+            return self.config
+
         prompt = f"""
-            Stack Template:
-            {json.dumps(self.stack.template)}
+            Terraform config:
+            {self.config.template}
             
             Deployment logs:
             {'Log Message:'.join(map(str, self.logs_cache))}
@@ -88,36 +92,37 @@ class Diagnoser:
 
         if (
             diagnosed_issue == DiagnoserState.DEPLOYABLE
-        ):  # No action. stack is good as is.
-            return self.stack
+        ):  # No action. config is good as is.
+            return self.config
         elif (
             diagnosed_issue == DiagnoserState.MISSING_OR_INVALID_DATA
             or diagnosed_issue == DiagnoserState.OTHER
         ):
-            # Need to basically verify that the cf stack's info that is broken can be
+            # Need to basically verify that the tf config's info that is broken can be
             # fixed/is a stupid mistake rather than user issue.
             response = prompt_with_file(
-                BASE_PROMPT_PATH + VERIFY_CONSTRUCTED_STACK,
+                BASE_PROMPT_PATH + VERIFY_CONSTRUCTED_CONFIG,
                 prompt,
                 self.llm_client,
-                is_json=True,
+                is_json=False,
             )
 
             if len(response) == 0:
-                raise CFStackRequiresUserInfoException
+                print("Stack reqires some info from user. Returning custom msg.")
+                raise TFConfigRequiresUserInfoException
 
-            print(f"Fixed stack: {json.dumps(response)}")
-            return CloudFormationStack(response, self.stack.name)
+            print(f"Fixed tf config: {response}")
+            return TerraformConfig(response, self.config.name)
 
         raise DeploymentBrokenException
 
-    def determine_stack_deployability(
+    def determine_config_deployability(
         self, current_state: ChatSessionState
     ) -> DiagnoserState:
         """
-        A binary classifier that returns whether the stack can be deployed or not.
+        A binary classifier that returns whether the config can be deployed or not.
         """
-        # If the stack has been deployed before, check logs to see for failures. If there are logs, return missing state.
+        # If the config has been deployed before, check logs to see for failures. If there are logs, return missing state.
         if (
             current_state == ChatSessionState.DEPLOYMENT_FAILED
             and len(self.logs_cache) > 0
@@ -131,60 +136,65 @@ class Diagnoser:
 
         return DiagnoserState.OTHER
 
-    def get_stack_logs(self, stack_name: str) -> List[str]:
-        """
-        Get logs for a cf stack deployment. Returns a list of log messages.
-        """
+    # def get_config_logs(self, config_name: str) -> List[str]:
+    #     """
+    #     Get logs for a tf config deployment. Returns a list of log messages.
+    #     """
 
-        # Get stack events
-        response = self.cf_client.describe_stack_events(StackName=stack_name)
+    #     # Get config events
+    #     response = self.tf_config.describe_stack_events(StackName=config_name)
 
-        # Print out the events
-        logs = []
-        for event in response["StackEvents"]:
-            if "FAILED" in event["ResourceStatus"]:
-                log_str = f"""
-                    Resource: {event['LogicalResourceId']}
-                    Status: {event['ResourceStatus']}
-                    Reason: {event['ResourceStatusReason']}
-                """
-                logs.append(log_str)
-                self.logs_cache.append(log_str)
+    #     # Print out the events
+    #     logs = []
+    #     for event in response["StackEvents"]:
+    #         if "FAILED" in event["ResourceStatus"]:
+    #             log_str = f"""
+    #                 Resource: {event['LogicalResourceId']}
+    #                 Status: {event['ResourceStatus']}
+    #                 Reason: {event['ResourceStatusReason']}
+    #             """
+    #             logs.append(log_str)
+    #             self.logs_cache.append(log_str)
 
-        print(f"log length: {len(self.logs_cache)}")
-        return logs
+    #     print(f"log length: {len(self.logs_cache)}")
+    #     return logs
 
 
-class DeployCFStackAction(base.AbstractAction):
+class DeployTFConfigAction(base.AbstractAction):
     """
     An action to deploy a cf stack to a user's account
     """
 
     def __init__(
         self,
-        user_stack: CloudFormationStack,
+        user_config: TerraformConfig,
         chat_session_id: int,
         state_manager: SupaClient,
-        user_aws_secret_key: str,
-        user_aws_access_key_id: str,
+        # user_aws_secret_key: str,
+        # user_aws_access_key_id: str,
+        tf_file_dir: str,
     ) -> None:
         """
         Constructs a user deployment action
         """
         super().__init__()
-        self.user_secret_key = user_aws_secret_key
-        self.user_aws_access_key_id = user_aws_access_key_id
+        # self.user_secret_key = user_aws_secret_key
+        # self.user_aws_access_key_id = user_aws_access_key_id
 
-        self.cf_client = boto3.client(
-            "cloudformation",
-            aws_access_key_id=self.user_aws_access_key_id,
-            aws_secret_access_key=self.user_secret_key,
-        )
+        # self.cf_client = boto3.client(
+        #     "cloudformation",
+        #     aws_access_key_id=self.user_aws_access_key_id,
+        #     aws_secret_access_key=self.user_secret_key,
+        # )
 
-        self.user_stack = user_stack
+        self.user_config = user_config
         self.state_manager = state_manager
         self.chat_session_id = chat_session_id
-        self.diagnoser = Diagnoser(self.user_stack, self.cf_client, self.gpt_client)
+        self.diagnoser = Diagnoser(self.user_config, self.claude_client)
+
+        self.tf_client = Terraform(working_dir=tf_file_dir)
+        self.tf_client.init()
+        self.tf_file_dir = tf_file_dir
 
     def request_deployment_info(self) -> str:
         """
@@ -193,8 +203,8 @@ class DeployCFStackAction(base.AbstractAction):
         """
 
         prompt = f"""
-            cloudformation stack template:
-            {json.dumps(self.user_stack.template)}
+            terraform config:
+            {self.user_config.template}
             
             logs:
             {json.dumps(', '.join(list(self.diagnoser.logs_cache)))}
@@ -212,46 +222,32 @@ class DeployCFStackAction(base.AbstractAction):
 
         return response
 
-    def deploy_stack(self, stack_name: str) -> Tuple[str, ChatSessionState]:
+    def destroy(self) -> str:
         """
-        Deploys user's cf stack into their account
+        Destroys the failed config deployed by self.tf_client
+        """
+        print("Destroying the failed configuration...")
+        return_code, _, destroy_stderr = self.tf_client.cmd("destroy", "-auto-approve")
+        if return_code != 0:
+            self.diagnoser.logs_cache.append(destroy_stderr)
+            return destroy_stderr
+
+        return DESTROY_SUCCESS
+
+    def deploy_config(self) -> Tuple[str, ChatSessionState]:
+        """
+        Deploys user's tf config into their account
         """
 
-        template_body = json.dumps(self.user_stack.template)
-        stack_exists = True
         state: ChatSessionState
         response = None
 
         try:
-            try:
-                # Check if the stack exists
-                existing_stacks = self.cf_client.describe_stacks(StackName=stack_name)
-                stack_exists = any(
-                    stack["StackName"] == stack_name
-                    for stack in existing_stacks["Stacks"]
-                )
-            except self.cf_client.exceptions.ClientError as e:
-                if "does not exist" in str(e):
-                    stack_exists = False
-                else:
-                    raise
+            # 1. TODO if the template doesn't exist at the dir path, load it in with the supa client
 
-            if stack_exists:
-                # Update the stack
-                print(f"Updating stack {stack_name}")
-                response = self.cf_client.update_stack(
-                    StackName=stack_name,
-                    TemplateBody=template_body,
-                    Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
-                )
-            else:
-                # Create the stack
-                print(f"Creating stack {stack_name}")
-                response = self.cf_client.create_stack(
-                    StackName=stack_name,
-                    TemplateBody=template_body,
-                    Capabilities=["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"],
-                )
+            # self.tf_client.plan(
+            #     capture_output=True
+            # )
 
             # Marking the deployment as in progress
             state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
@@ -259,34 +255,31 @@ class DeployCFStackAction(base.AbstractAction):
                 self.chat_session_id, ChatSessionState.DEPLOYMENT_IN_PROGRESS
             )
 
-            # Wait for the stack to be created/updated
-            waiter = self.cf_client.get_waiter(
-                "stack_create_complete" if not stack_exists else "stack_update_complete"
+            # Apply the changes and capture the output
+            return_code, _, apply_stderr = self.tf_client.apply(
+                skip_plan=True, capture_output=True, raise_on_error=False
             )
 
-            print("Waiting on stack deployment...")
-            waiter.wait(StackName=stack_name)
-            print(f"Stack {stack_name} deployment complete.")
+            if return_code != 0:
+                print("Terraform apply failed.")
+                print(apply_stderr)
+                # self.diagnoser.logs_cache.append(apply_stdout)
+                self.diagnoser.logs_cache.append(apply_stderr)
+                raise DeploymentBrokenException
+
+            print(f"Config {self.user_config.name} deployment complete.")
             state = ChatSessionState.DEPLOYMENT_SUCCEEDED
+            response = SUCCESS_RESPONSE
         except Exception as e:
             print(f"Error during stack deployment: {e}")
             state = ChatSessionState.DEPLOYMENT_FAILED
+            response = ERROR_RESPONSE
         finally:
             self.state_manager.update_chat_session_state(self.chat_session_id, state)
 
-        if (
-            state == ChatSessionState.DEPLOYMENT_FAILED
-        ):  # if deployment failed, clean the resources
-            self.diagnoser.get_stack_logs(
-                stack_name
-            )  # saving the error logs from cf stacks into memory for later error handling
-            response = self.cf_client.delete_stack(StackName=stack_name)
-
-            # Wait until the stack deletion is complete
-            waiter = self.cf_client.get_waiter("stack_delete_complete")
-            print(f"Deleting stack {stack_name}...")
-            waiter.wait(StackName=stack_name)
-            print(f"Stack {stack_name} has been deleted.")
+        if state == ChatSessionState.DEPLOYMENT_FAILED:
+            self.destroy()
+            response = ERROR_RESPONSE
 
         return str(response), state
 
@@ -297,20 +290,21 @@ class DeployCFStackAction(base.AbstractAction):
         """
 
         try:
-            new_stack = self.diagnoser.fix_broken_stack(diagnosed_issue)
+            new_stack = self.diagnoser.fix_broken_config(diagnosed_issue)
             for i in range(NUM_RETRIES):  # TODO change be back
-                _, state = self.deploy_stack(new_stack.name)
+                _, state = self.deploy_config()
                 print(f"state after {i} deployment: {state}")
 
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
+                    self.user_config = new_stack
                     return SUCCESS_RESPONSE
 
-                deployability = self.diagnoser.determine_stack_deployability(state)
+                deployability = self.diagnoser.determine_config_deployability(state)
                 print(deployability)
                 print(f"logs length: {len(self.diagnoser.logs_cache)}")
-                new_stack = self.diagnoser.fix_broken_stack(deployability)
+                new_stack = self.diagnoser.fix_broken_config(deployability)
                 self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
-        except CFStackRequiresUserInfoException:
+        except TFConfigRequiresUserInfoException:
             print("Deployment requires user info. Returning specific request message.")
             ret_msg = self.request_deployment_info()
             self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
@@ -341,18 +335,18 @@ class DeployCFStackAction(base.AbstractAction):
         elif (
             state == ChatSessionState.QUERIED_AND_DEPLOYABLE
         ):  # 1.e If deployable but not deployed, run deployment.
-            response, state = self.deploy_stack(input)
+            response, state = self.deploy_config()
         elif (
             state == ChatSessionState.QUERIED
             or state == ChatSessionState.QUERIED_NOT_DEPLOYABLE
         ):
             # 2. if never deployed, validate stack is deployable
-            diagnoser_decision = self.diagnoser.determine_stack_deployability(state)
+            diagnoser_decision = self.diagnoser.determine_config_deployability(state)
 
             #   2.a if not deployable, call diagnoser with same retry/missing info requests
             if diagnoser_decision == DiagnoserState.DEPLOYABLE:
-                response, state = self.deploy_stack(
-                    input
+                response, state = (
+                    self.deploy_config()
                 )  # 2.b if deployable, attempt deployment.
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
                     # 2.b.1 if succeeded, return msg saying deployment succeeded
@@ -370,7 +364,7 @@ class DeployCFStackAction(base.AbstractAction):
             pass
 
         if state == ChatSessionState.DEPLOYMENT_FAILED:
-            diagnoser_decision = self.diagnoser.determine_stack_deployability(state)
+            diagnoser_decision = self.diagnoser.determine_config_deployability(state)
             print(f"Diagnosed decision in beginning: {diagnoser_decision}")
             response = self.handle_failed_deployment(diagnoser_decision)
 
