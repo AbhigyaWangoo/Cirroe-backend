@@ -90,6 +90,10 @@ def setup_deployment_action(user_id: int, chat_session_id: int) -> DeployTFConfi
 
     file_path = os.path.join(dir_path, user_config.name)
 
+    if os.path.exists(file_path):
+        # We've aready tried this before. Construct the user config from that provided value
+        pass
+
     with open(f"{file_path}.tf", 'w', encoding="utf8") as file:
         file.write(user_config.template)
 

@@ -85,7 +85,7 @@ class Diagnoser:
         prompt = f"""
             Terraform config:
             {self.config.template}
-            
+
             Deployment logs:
             {'Log Message:'.join(map(str, self.logs_cache))}
         """
@@ -135,29 +135,6 @@ class Diagnoser:
             return DiagnoserState.DEPLOYABLE
 
         return DiagnoserState.OTHER
-
-    # def get_config_logs(self, config_name: str) -> List[str]:
-    #     """
-    #     Get logs for a tf config deployment. Returns a list of log messages.
-    #     """
-
-    #     # Get config events
-    #     response = self.tf_config.describe_stack_events(StackName=config_name)
-
-    #     # Print out the events
-    #     logs = []
-    #     for event in response["StackEvents"]:
-    #         if "FAILED" in event["ResourceStatus"]:
-    #             log_str = f"""
-    #                 Resource: {event['LogicalResourceId']}
-    #                 Status: {event['ResourceStatus']}
-    #                 Reason: {event['ResourceStatusReason']}
-    #             """
-    #             logs.append(log_str)
-    #             self.logs_cache.append(log_str)
-
-    #     print(f"log length: {len(self.logs_cache)}")
-    #     return logs
 
 
 class DeployTFConfigAction(base.AbstractAction):
@@ -245,10 +222,6 @@ class DeployTFConfigAction(base.AbstractAction):
         try:
             # 1. TODO if the template doesn't exist at the dir path, load it in with the supa client
 
-            # self.tf_client.plan(
-            #     capture_output=True
-            # )
-
             # Marking the deployment as in progress
             state = ChatSessionState.DEPLOYMENT_IN_PROGRESS
             self.state_manager.update_chat_session_state(
@@ -263,7 +236,6 @@ class DeployTFConfigAction(base.AbstractAction):
             if return_code != 0:
                 print("Terraform apply failed.")
                 print(apply_stderr)
-                # self.diagnoser.logs_cache.append(apply_stdout)
                 self.diagnoser.logs_cache.append(apply_stderr)
                 raise DeploymentBrokenException
 
