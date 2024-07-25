@@ -14,7 +14,7 @@ from enum import Enum
 
 # TODO use this to validate whether a stack is valid or not before deployment: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation/client/validate_template.html
 
-NUM_RETRIES = 3
+NUM_RETRIES = 1
 LOG_LIMIT = 100
 
 REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
@@ -261,9 +261,19 @@ class DeployTFConfigAction(base.AbstractAction):
         Returns a message to the user
         """
 
+        def return_user_request() -> str:
+            """
+            A small helper that requests deployment info from the user.
+            """
+            print("Deployment requires user info. Returning specific request message.")
+            ret_msg = self.request_deployment_info()
+            self.diagnoser.logs_cache.clear()
+            return ret_msg
+
         try:
             new_stack = self.diagnoser.fix_broken_config(diagnosed_issue)
-            for i in range(NUM_RETRIES):  # TODO change be back
+            for i in range(NUM_RETRIES):
+                self.diagnoser.logs_cache.clear()
                 _, state = self.deploy_config()
                 print(f"state after {i} deployment: {state}")
 
@@ -275,19 +285,18 @@ class DeployTFConfigAction(base.AbstractAction):
                 print(deployability)
                 print(f"logs length: {len(self.diagnoser.logs_cache)}")
                 new_stack = self.diagnoser.fix_broken_config(deployability)
-                self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
-        except TFConfigRequiresUserInfoException:
-            print("Deployment requires user info. Returning specific request message.")
-            ret_msg = self.request_deployment_info()
-            self.diagnoser.logs_cache.clear()  # need to clear here so that in the following run, we don't include misinformation
-            return ret_msg
-        # except Exception as e:
-        #     print(f"Error handling failed deployment: {e}")
 
-        # At this point, we're cooked. So going to relinquish the log cache.
-        self.diagnoser.logs_cache.clear()
+            ret_msg = return_user_request()
+        except TFConfigRequiresUserInfoException:
+            ret_msg = return_user_request()
+        except Exception as e:
+            # At this point, we're cooked. So going to relinquish the log cache.
+            print(f"Error handling failed deployment: {e}")
+            ret_msg = return_user_request()
+            self.diagnoser.logs_cache.clear()
+
         print("Couldn't diagnose error properly. Returning complete failure response.")
-        return ERROR_RESPONSE
+        return ret_msg
 
     def trigger_action(self) -> Any:
         """

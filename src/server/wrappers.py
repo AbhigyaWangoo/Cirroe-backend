@@ -5,12 +5,16 @@ from src.actions.deploy import DeployTFConfigAction, ERROR_RESPONSE
 from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException
 from src.model.stack import TerraformConfig
 import os
+from collections import deque
 
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 from include.llm.gpt import GPTClient
 
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
+
+CHAT_CACHE_LIMIT = 5
+chat_cache = deque(maxlen=CHAT_CACHE_LIMIT)
 
 def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClient) -> str:
     """
@@ -137,12 +141,35 @@ def handle_irrelevant_query(query: str, client: GPTClient) -> str:
         query,
         client,
     )
+    print(response)
 
     return response
 
+def get_memory(user_query: str) -> str:
+    """
+    Returns a perfect string of the memory 
+    from the last few chats from the user so
+    far. Takes the user query to append to the 
+    end.
+    """
+    mem = """
+        Here are a set of previous chats between you and the user. Use them to 
+        inform your response to the user.
+    """
+
+    for chat in chat_cache:
+        mem += chat
+
+    final_chunk = f"""
+        Now, here is the new query from the user.
+        {user_query}
+    """
+
+    return mem + final_chunk
+
 def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     """
-    A wrapper around a Cirrus query. Determines whether the input query is a 
+    A wrapper around a Cirroe query. Determines whether the input query is a 
     construction call, or an edit call. For now, we're not allowing deployments from chat.
     """
 
@@ -152,11 +179,12 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     stack: TerraformConfig | None = None
 
     state = supa_client.get_chat_session_state(chat_session_id)
+    memory_powered_query = get_memory(user_query)
     if state == ChatSessionState.NOT_QUERIED:
         # 2. if never been queried before, only then can this be a construction action
         response = prompt_with_file(
             BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, 
-            user_query, 
+            memory_powered_query,
             client
         )
 
@@ -164,20 +192,25 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
             print("Need to construct")
             response = construction_wrapper(user_query, chat_session_id, supa_client)
         else:
-            response = handle_irrelevant_query(user_query, client)
+            response = handle_irrelevant_query(memory_powered_query, client)
+            supa_client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
     else:
         # 3. if exists, can only be edit. assumes that edit action will 
         # handle even if no edits are possible.
 
-        if not stack:
+        try:
             stack = supa_client.get_tf_config(chat_session_id)
+            # Just because stack exists doesn't mean query is relevant. TODO add irrelevant catcher here
 
-        if stack:
             response = edit_wrapper(user_query, chat_session_id, supa_client, stack)
+        except TFConfigDNEException:
+            print("State was not NOT_QUERIED, but stack dne. Assuming irrelevant query")
+            response = handle_irrelevant_query(memory_powered_query, client)
 
-            if response is None:
-                response = handle_irrelevant_query(user_query, client)
-        else:
-            print("State was not NOT_QUERIED, but stack dne.")
+    back_and_forth_str = f"""
+        q: {user_query}
+        a: {response}
+    """
+    chat_cache.append(back_and_forth_str)
 
     return response
