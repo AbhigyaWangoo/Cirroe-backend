@@ -9,20 +9,22 @@ import os
 load_dotenv()
 
 # pb vars
-DEFAULT_DESC='Fine-tune some model with my dataset for my task.'
-DEFAULT_NAME="cfstack ultra"
-DEFAULT_EPOCHS=5.0
-DEFAULT_LR=0.4
+DEFAULT_DESC = "Fine-tune some model with my dataset for my task."
+DEFAULT_NAME = "cfstack ultra"
+DEFAULT_EPOCHS = 5.0
+DEFAULT_LR = 0.4
+
 
 class AbstractFineTuner(ABC):
     """
     Abstract class for fine tuning models
     """
+
     def __init__(self, dataset: Dataset, epochs: float, learning_rate: float) -> None:
-        self.dataset=dataset
-        self.epochs=epochs
-        self.learning_rate=learning_rate
-        self.finetuned_model=None
+        self.dataset = dataset
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+        self.finetuned_model = None
 
     def split(self) -> Tuple[Dataset, Dataset]:
         """
@@ -37,11 +39,18 @@ class AbstractFineTuner(ABC):
         """
         pass
 
+
 class PredibaseFineTuner(AbstractFineTuner):
     """
     A class to finetune datasets with predibase.
     """
-    def __init__(self, dataset: Dataset, epochs: float = DEFAULT_EPOCHS, learning_rate: float = DEFAULT_LR) -> None:
+
+    def __init__(
+        self,
+        dataset: Dataset,
+        epochs: float = DEFAULT_EPOCHS,
+        learning_rate: float = DEFAULT_LR,
+    ) -> None:
         super().__init__(dataset, epochs, learning_rate)
         self.api_key = os.environ.get("PB_TOKEN", "")
         self.pb = Predibase(api_token=self.api_key)
@@ -57,14 +66,12 @@ class PredibaseFineTuner(AbstractFineTuner):
 
         # Start a fine-tuning job, blocks until training is finished
         adapter = pb.adapters.create(
-            config=FinetuningConfig(
-                base_model="mistral-7b"
-            ),
-            dataset=self.dataset, # Also accepts the dataset name as a string
+            config=FinetuningConfig(base_model="mistral-7b"),
+            dataset=self.dataset,  # Also accepts the dataset name as a string
             repo=repo,
-            description=desc
+            description=desc,
         )
-        self.finetuned_model=adapter
+        self.finetuned_model = adapter
         # TODO set this up for inference on predibase. Create new predibase llm object in include/llm repo
 
         return adapter

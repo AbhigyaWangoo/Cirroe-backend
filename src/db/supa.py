@@ -42,7 +42,9 @@ class TFConfigDNEException(Exception):
     """
     Represents cases where a stack doesn't exist in db yet
     """
+
     pass
+
 
 class SupaClient:
     """
@@ -112,18 +114,12 @@ class SupaClient:
             response[STACK_NAME_COL] = new_name
             self.edit_entire_tf_config(
                 chat_session_id,
-                TerraformConfig(
-                    response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL]
-                ),
+                TerraformConfig(response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL]),
             )
 
-        return TerraformConfig(
-            response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL]
-        )
+        return TerraformConfig(response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL])
 
-    def edit_entire_tf_config(
-        self, chat_session_id: int, new_config: TerraformConfig
-    ):
+    def edit_entire_tf_config(self, chat_session_id: int, new_config: TerraformConfig):
         """
         Alter an existing cf stack with the new one.
         """
@@ -131,7 +127,10 @@ class SupaClient:
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .update(
-                {TF_CONFIG_COL_NAME: new_config.template, STACK_NAME_COL: new_config.name}
+                {
+                    TF_CONFIG_COL_NAME: new_config.template,
+                    STACK_NAME_COL: new_config.name,
+                }
             )
             .eq(ID, chat_session_id)
             .execute()
@@ -173,8 +172,8 @@ class SupaClient:
         """
         Returns the user's aws credentials in the following format:
         aws_secret_key, aws_access_key_id
-        
-        TODO as of now this just returns mine. Need to alter to provide 
+
+        TODO as of now this just returns mine. Need to alter to provide
         user supplied aws creds.
         """
         secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")

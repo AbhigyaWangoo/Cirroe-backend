@@ -28,7 +28,7 @@ NO_INPUT_YET_RESPONSE = "I don't think you've given me any specifications yet. P
 ERROR_RESPONSE = (
     "Awe man, looks like something failed with the deployment. Please contact support."
 )
-DESTROY_SUCCESS="Successfully destroyed and cleaned up your resources."
+DESTROY_SUCCESS = "Successfully destroyed and cleaned up your resources."
 
 
 class DiagnoserState(Enum):

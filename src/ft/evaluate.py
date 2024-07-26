@@ -3,10 +3,12 @@ from src.model.stack import Dataset
 from include.llm.base import AbstractLLMClient
 from typing import List
 
+
 class EvaluationResult:
     """
-    A test run results bundle. 
+    A test run results bundle.
     """
+
     def __init__(self) -> None:
         pass
 
@@ -24,6 +26,7 @@ class EvaluationResult:
 
         with open(output_file, "w", encoding="utf8") as fp:
             fp.write(str_results)
+
 
 class Evaluator:
     """

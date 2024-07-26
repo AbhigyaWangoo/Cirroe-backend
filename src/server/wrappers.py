@@ -16,7 +16,10 @@ IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 CHAT_CACHE_LIMIT = 5
 chat_cache = deque(maxlen=CHAT_CACHE_LIMIT)
 
-def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClient) -> str:
+
+def construction_wrapper(
+    user_query: str, chat_session_id: int, client: SupaClient
+) -> str:
     """
     Constructs a terraform config based off user query. Persists config in supabase and updates
     chat session state. Returns qualitative response for user.
@@ -46,7 +49,9 @@ def construction_wrapper(user_query: str, chat_session_id: int, client: SupaClie
         )
 
 
-def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig) -> str | None:
+def edit_wrapper(
+    user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig
+) -> str | None:
     """
     Using the user query, and the cf stack retrieved from supabase with the chat
     session id, edits the cf stack and responds qualitativly to the user.
@@ -80,6 +85,7 @@ def edit_wrapper(user_query: str, chat_session_id: str, client: SupaClient, conf
         )
         return None
 
+
 def setup_deployment_action(user_id: int, chat_session_id: int) -> DeployTFConfigAction:
     """
     Sets up and returns a deployment action for usage.
@@ -98,25 +104,29 @@ def setup_deployment_action(user_id: int, chat_session_id: int) -> DeployTFConfi
         # We've aready tried this before. Construct the user config from that provided value
         pass
 
-    with open(f"{file_path}.tf", 'w', encoding="utf8") as file:
+    with open(f"{file_path}.tf", "w", encoding="utf8") as file:
         file.write(user_config.template)
 
-    deployment_action = DeployTFConfigAction(user_config, chat_session_id, supa_client, dir_path)
+    deployment_action = DeployTFConfigAction(
+        user_config, chat_session_id, supa_client, dir_path
+    )
 
     return deployment_action
 
+
 def destroy_wrapper(user_id: int, chat_session_id: int):
     """
-    Wrapper around a destruction action. Allows us to destroy 
+    Wrapper around a destruction action. Allows us to destroy
     a setup from the user's request.
     """
     action = setup_deployment_action(user_id, chat_session_id)
 
     return action.destroy()
 
+
 def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
     """
-    A wrapper around the deployment action. Allows us to deploy a 
+    A wrapper around the deployment action. Allows us to deploy a
     cf stack from the user.
     """
     deployment_action = setup_deployment_action(user_id, chat_session_id)
@@ -126,14 +136,15 @@ def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
 
     dir_path = os.path.join("include/data/", str(chat_session_id))
     if response == ERROR_RESPONSE:
-        shutil.rmtree(dir_path) # TODO fix this inna bit
+        shutil.rmtree(dir_path)  # TODO fix this inna bit
 
     return response
 
+
 def handle_irrelevant_query(query: str, client: GPTClient) -> str:
     """
-    Hanldes and responds to a query that isn't clearly about creating or 
-    deploying infra. If the query is asking some questions about aws, or how 
+    Hanldes and responds to a query that isn't clearly about creating or
+    deploying infra. If the query is asking some questions about aws, or how
     this thing works, then answer, else respond with a msg saying pls be specific.
     """
     response = prompt_with_file(
@@ -145,11 +156,12 @@ def handle_irrelevant_query(query: str, client: GPTClient) -> str:
 
     return response
 
+
 def get_memory(user_query: str) -> str:
     """
-    Returns a perfect string of the memory 
+    Returns a perfect string of the memory
     from the last few chats from the user so
-    far. Takes the user query to append to the 
+    far. Takes the user query to append to the
     end.
     """
     mem = """
@@ -167,9 +179,10 @@ def get_memory(user_query: str) -> str:
 
     return mem + final_chunk
 
+
 def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     """
-    A wrapper around a Cirroe query. Determines whether the input query is a 
+    A wrapper around a Cirroe query. Determines whether the input query is a
     construction call, or an edit call. For now, we're not allowing deployments from chat.
     """
 
@@ -180,13 +193,11 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     memory_powered_query = get_memory(user_query)
     try:
         supa_client.get_tf_config(chat_session_id)
-        need_to_construct=False
+        need_to_construct = False
     except TFConfigDNEException:
         # determine the type of query
         response = prompt_with_file(
-            BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, 
-            memory_powered_query,
-            client
+            BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, memory_powered_query, client
         )
         need_to_construct = response.lower() == "true"
 

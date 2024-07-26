@@ -68,7 +68,7 @@ class ConstructTFConfigAction(base.AbstractAction):
 
     def trigger_action(self, infra_description: str) -> Any:
         """
-        For construction of a tf config file, this fn will input a response, 
+        For construction of a tf config file, this fn will input a response,
         and create + update a config in supabase.
         """
         # 1. Clean up input with a gpt call.

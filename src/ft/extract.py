@@ -7,18 +7,21 @@ from include.llm.gpt import GPTClient
 from include.utils import BASE_PROMPT_PATH
 from typeguard import typechecked
 
-PROMPTS=PROMPT+"s"
+PROMPTS = PROMPT + "s"
 
 
-SYNTHETIC_EXTRACTOR_PROMPT="extrapolate_synthetic.txt"
-EXAMPLES_FPATH="include/data/prompt_examples.json"
+SYNTHETIC_EXTRACTOR_PROMPT = "extrapolate_synthetic.txt"
+EXAMPLES_FPATH = "include/data/prompt_examples.json"
+
 
 class Extractor:
     """
     A data extractor. Extracts and returns a dataset to fine tune on.
     """
 
-    def __init__(self, dataset_path: str, prompts_file: Union[str, None] = None) -> None:
+    def __init__(
+        self, dataset_path: str, prompts_file: Union[str, None] = None
+    ) -> None:
         """
         Assumes that the prompts file looks exactly like this:
 
@@ -49,7 +52,7 @@ class Extractor:
 
     def extract_templates(self) -> List[TerraformConfig]:
         """
-        Extracts a list of templates from the provided directory. Assumes that the directory 
+        Extracts a list of templates from the provided directory. Assumes that the directory
         files that end with .json are valid, disregards all others.
         """
 
@@ -57,7 +60,7 @@ class Extractor:
         for root, _, files in os.walk(self.dataset_path):
             for file in files:
                 if file.endswith(".json"):
-                    with open(os.path.join(root, file), 'r') as f:
+                    with open(os.path.join(root, file), "r") as f:
                         try:
                             template = json.load(f)
                             templates.append(TerraformConfig(template, file))
@@ -66,16 +69,16 @@ class Extractor:
         return templates
 
     @typechecked
-    def synthetic_generator(self,
-                            stacks: Dict[str, TerraformConfig],
-                            gt_examples: List[Dict[str,str]]) -> Dict[str, TerraformConfig]:
+    def synthetic_generator(
+        self, stacks: Dict[str, TerraformConfig], gt_examples: List[Dict[str, str]]
+    ) -> Dict[str, TerraformConfig]:
         """
-        Generates prompts via a gpt-4o call. If n = len(gt_examples), and m = len(stacks), 
-        then the first n stacks have a corresponding prompt already provided as a ground 
+        Generates prompts via a gpt-4o call. If n = len(gt_examples), and m = len(stacks),
+        then the first n stacks have a corresponding prompt already provided as a ground
         truth to be used for the remaining m - n stacks.
 
         Assumes that m > n, always.
-        
+
         stacks:
         ```json
         {
@@ -85,7 +88,7 @@ class Extractor:
         }
         ```
 
-        gt_examples: 
+        gt_examples:
         ```json
         [
             {
@@ -110,11 +113,13 @@ class Extractor:
         if m == n:
             return
 
-        prompt_to_stack_mapping={}
+        prompt_to_stack_mapping = {}
 
-        with open(BASE_PROMPT_PATH + SYNTHETIC_EXTRACTOR_PROMPT, "r", encoding="utf8") as fp:
+        with open(
+            BASE_PROMPT_PATH + SYNTHETIC_EXTRACTOR_PROMPT, "r", encoding="utf8"
+        ) as fp:
             prompt = fp.read()
-            i=0
+            i = 0
             covered_fnames = set()
 
             while i < n:
@@ -131,24 +136,28 @@ class Extractor:
                 prompt += few_shot_prompt
                 i += 1
 
-            flag=True
+            flag = True
             for fname in stacks:
                 if fname not in covered_fnames:
                     stack_str = json.dumps(stacks[fname].template)
 
-                    synthetic_prompt="aaa"+fname
+                    synthetic_prompt = "aaa" + fname
                     if flag:
-                        synthetic_prompt = self.claude_client.query(prompt=stack_str, sys_prompt=prompt)
+                        synthetic_prompt = self.claude_client.query(
+                            prompt=stack_str, sys_prompt=prompt
+                        )
                         print(synthetic_prompt)
                         print(fname)
-                        flag=False
+                        flag = False
 
                     prompt_to_stack_mapping[synthetic_prompt] = stacks[fname]
 
         return prompt_to_stack_mapping
 
     @typechecked
-    def get_inputs(self, stacks: List[TerraformConfig], gt_examples: List[Dict[str,str]]) -> Dataset:
+    def get_inputs(
+        self, stacks: List[TerraformConfig], gt_examples: List[Dict[str, str]]
+    ) -> Dataset:
         """
         Given a list of cf stacks, bundles it into a Dataset object.
         """
@@ -185,13 +194,15 @@ class Extractor:
         #     print(templates[i].name)
 
         with open(EXAMPLES_FPATH, "r", encoding="utf8") as fp:
-            gt_examples=json.load(fp)
+            gt_examples = json.load(fp)
 
             dataset = self.get_inputs(templates, gt_examples[PROMPTS])
 
             return dataset
 
-    def split(self, dataset: Dataset, train_vs_test: float = 0.8) -> Tuple[Dataset, Dataset]:
+    def split(
+        self, dataset: Dataset, train_vs_test: float = 0.8
+    ) -> Tuple[Dataset, Dataset]:
         """
         Split a dataset into train and test by randomly selecting
         values for train and test. Return both.
