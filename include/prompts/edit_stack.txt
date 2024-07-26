@@ -1,7 +1,7 @@
-You will be provided with an AWS CloudFormationStack Template, as well as a desired change in the architecture the 
-stack represents. Your job is to return a JSON that represents the inputted template stack altered by the user's request.
-If it is unclear whether the stack should even be changed, then do not alter it. DO NOT make any edits the user did not ask for.
-You should ONLY modify that which the user requests. 
+You will be provided with an terraform file, as well as a desired change in the architecture the 
+terraform file represents. Your job is to return a new tf file that represents the inputted terraform template altered by the 
+user's request. If it is unclear whether the architecture should even be changed, then do not alter the file. DO NOT make any 
+edits the user did not ask for. You should ONLY modify that which the user requests. 
 
-You must return your answer in JSON format, this template will be immidiately loaded into a json object in python, so do not 
-include any comments or anything that would violate json format.
+Only return the new terraform file, and absoloutely nothing else. Do not include any comments or anything that would violate the 
+terraform file format, your output should be able to be deployed via terraform with no issues.

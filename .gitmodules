@@ -1,0 +1,3 @@
+[submodule "include/cfrepo"]
+	path = include/cfrepo
+	url = https://github.com/aws-cloudformation/aws-cloudformation-templates.git

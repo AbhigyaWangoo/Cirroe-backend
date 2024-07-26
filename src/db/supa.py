@@ -1,4 +1,4 @@
-from src.model.stack import CloudFormationStack
+from src.model.stack import TerraformConfig
 from include.utils import hash_str
 import os
 from dotenv import load_dotenv
@@ -6,8 +6,10 @@ from supabase import create_client, Client
 from supabase.client import ClientOptions
 from enum import Enum, StrEnum
 
+from typing import Tuple
+
 # DB Column names
-CF_STACK_COL_NAME = "CirrusTemplate"
+TF_CONFIG_COL_NAME = "CirrusTemplate"
 STATE_COL_NAME = "State"
 STACK_NAME_COL = "StackName"
 ID = "id"
@@ -36,11 +38,13 @@ class Table(StrEnum):
     CHATS = "Chats"
 
 
-class StackDNEException(Exception):
+class TFConfigDNEException(Exception):
     """
     Represents cases where a stack doesn't exist in db yet
     """
+
     pass
+
 
 class SupaClient:
     """
@@ -68,7 +72,7 @@ class SupaClient:
         except Exception as e:
             raise ConnectionError(f"Error: Couldn't connect to supabase db. {e}")
 
-    def upload_cf_stack(self, stack: CloudFormationStack):
+    def upload_cf_stack(self, stack: TerraformConfig):
         """
         Uploads a CF stack template to the correct chatsession
         """
@@ -78,7 +82,7 @@ class SupaClient:
             .insert(
                 {
                     "UserId": self.user_id,
-                    CF_STACK_COL_NAME: stack.template,
+                    TF_CONFIG_COL_NAME: stack.template,
                     STACK_NAME_COL: stack.name,
                 }
             )
@@ -87,20 +91,20 @@ class SupaClient:
 
         return response
 
-    def get_cf_stack(self, chat_session_id: int) -> CloudFormationStack:
+    def get_tf_config(self, chat_session_id: int) -> TerraformConfig:
         """
-        Given the chat session id, get the cf stack.
+        Given the chat session id, get the tf config.
         """
 
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
-            .select(STACK_NAME_COL, CF_STACK_COL_NAME)
+            .select(STACK_NAME_COL, TF_CONFIG_COL_NAME)
             .eq(ID, chat_session_id)
             .execute()
         ).data[0]
 
-        if response[CF_STACK_COL_NAME] is None:
-            raise StackDNEException
+        if response[TF_CONFIG_COL_NAME] is None:
+            raise TFConfigDNEException
 
         if response[STACK_NAME_COL] is None:
             new_name = hash_str(str(chat_session_id))
@@ -108,20 +112,14 @@ class SupaClient:
                 f"Name of stack with id {chat_session_id} was none. setting it to {new_name}"
             )
             response[STACK_NAME_COL] = new_name
-            self.edit_entire_cf_stack(
+            self.edit_entire_tf_config(
                 chat_session_id,
-                CloudFormationStack(
-                    response[CF_STACK_COL_NAME], response[STACK_NAME_COL]
-                ),
+                TerraformConfig(response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL]),
             )
 
-        return CloudFormationStack(
-            response[CF_STACK_COL_NAME], response[STACK_NAME_COL]
-        )
+        return TerraformConfig(response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL])
 
-    def edit_entire_cf_stack(
-        self, chat_session_id: int, new_stack: CloudFormationStack
-    ):
+    def edit_entire_tf_config(self, chat_session_id: int, new_config: TerraformConfig):
         """
         Alter an existing cf stack with the new one.
         """
@@ -129,7 +127,10 @@ class SupaClient:
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .update(
-                {CF_STACK_COL_NAME: new_stack.template, STACK_NAME_COL: new_stack.name}
+                {
+                    TF_CONFIG_COL_NAME: new_config.template,
+                    STACK_NAME_COL: new_config.name,
+                }
             )
             .eq(ID, chat_session_id)
             .execute()
@@ -166,3 +167,15 @@ class SupaClient:
         )
 
         return ChatSessionState[response.data[0][STATE_COL_NAME]]
+
+    def get_user_aws_creds(self) -> Tuple[str, str]:
+        """
+        Returns the user's aws credentials in the following format:
+        aws_secret_key, aws_access_key_id
+
+        TODO as of now this just returns mine. Need to alter to provide
+        user supplied aws creds.
+        """
+        secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
+        access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
+        return secret, access
