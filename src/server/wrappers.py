@@ -176,36 +176,26 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     # 1. Get state.
     supa_client = SupaClient(user_id)
     client = GPTClient()
-    stack: TerraformConfig | None = None
 
-    state = supa_client.get_chat_session_state(chat_session_id)
     memory_powered_query = get_memory(user_query)
-    if state == ChatSessionState.NOT_QUERIED:
-        # 2. if never been queried before, only then can this be a construction action
+    try:
+        supa_client.get_tf_config(chat_session_id)
+        need_to_construct=False
+    except TFConfigDNEException:
+        # determine the type of query
         response = prompt_with_file(
             BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, 
             memory_powered_query,
             client
         )
+        need_to_construct = response.lower() == "true"
 
-        if response.lower() == "true":
-            print("Need to construct")
-            response = construction_wrapper(user_query, chat_session_id, supa_client)
-        else:
-            response = handle_irrelevant_query(memory_powered_query, client)
-            supa_client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
+    if need_to_construct:
+        # if never been queried before, only then can this be a construction action
+        response = construction_wrapper(user_query, chat_session_id, supa_client)
     else:
-        # 3. if exists, can only be edit. assumes that edit action will 
-        # handle even if no edits are possible.
-
-        try:
-            stack = supa_client.get_tf_config(chat_session_id)
-            # Just because stack exists doesn't mean query is relevant. TODO add irrelevant catcher here
-
-            response = edit_wrapper(user_query, chat_session_id, supa_client, stack)
-        except TFConfigDNEException:
-            print("State was not NOT_QUERIED, but stack dne. Assuming irrelevant query")
-            response = handle_irrelevant_query(memory_powered_query, client)
+        response = handle_irrelevant_query(memory_powered_query, client)
+        supa_client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
 
     back_and_forth_str = f"""
         q: {user_query}
