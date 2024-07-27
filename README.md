@@ -1,4 +1,4 @@
-# Project Name
+# Cirroe
 
 ## Description
 Cirroe is a chatbot built to allow users to describe cloud infra in natural language, and deploy that cloud infra in seconds. Simple as that.
