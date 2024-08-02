@@ -6,6 +6,7 @@ from src.model.stack import TerraformConfig
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 
 EDIT_CONFIG_PROMPT = "edit_stack.txt"
+EDIT_CONFIG_EXAMPLES = "edit_stack_examples.txt"
 DESCRIBE_EDIT_PROMPT = "describe_edit.txt"
 
 
@@ -19,19 +20,66 @@ class EditTFConfigAction(base.AbstractAction):
         self.config_to_edit = config_to_edit
         self.new_config = None
 
+    def get_structured_edit_prompt(self, query: str) -> str:
+        """
+        Get a very carefully structured sysprompt for stack edits
+        """
+
+        examples = ""
+        with open(BASE_PROMPT_PATH + EDIT_CONFIG_EXAMPLES, "r", encoding="utf8") as fp:
+            examples += fp.read()
+
+        sysprompt = f"""
+        You are an AI assistant tasked with modifying a Terraform file based on a user's requested change. Follow these instructions carefully:
+
+        1. First, you will be presented with a Terraform file
+
+        2. Next, you will be given a desired change in the architecture
+
+        3. Analyze the desired change carefully. Determine if it requires modifications to the Terraform file. If the change request is unclear or doesn't necessitate alterations to the architecture, do not modify the file.
+
+        4. If modifications are needed, make only the changes explicitly requested by the user. Do not make any additional edits or improvements that weren't specifically asked for.
+
+        5. Output the modified Terraform file. If no changes were necessary, output the original file unchanged. Your output should contain only valid Terraform code, without any additional comments, explanations, or formatting that would violate the Terraform file format. The output should be deployable via Terraform without any issues.
+
+        Remember:
+        - Only make changes explicitly requested by the user.
+        - Do not add any comments or explanations to the Terraform file.
+        - Ensure the output is a valid Terraform file that can be deployed without issues.
+        - Do not include any text before or after the Terraform file content in your output.
+
+        Here is an example:
+
+        {examples}
+
+        Here is the actual terraform file to analyze:
+        <terraform_file>
+        {self.config_to_edit}
+        </terraform_file>
+
+        And here is the desired change in architecture:
+        <desired_change>
+        {query}
+        </desired_change>
+        """
+
+        return sysprompt
+
     def determine_edit(self, user_input: str, retries: int = 3) -> TerraformConfig:
         """
         Alter the config_to_edit with the provided user input, and return the new config.
         """
 
         try:
-            new_config = prompt_with_file(
-                BASE_PROMPT_PATH + EDIT_CONFIG_PROMPT,
-                user_input,
-                self.claude_client,
+            sys_prompt = self.get_structured_edit_prompt(user_input)
+
+            new_config = self.claude_client.query(
+                user_input, 
+                sys_prompt, 
                 is_json=False,
-                temperature=0.35,
+                temperature=0.7
             )
+
         except Exception as e:
             print(f"Couldn't parse due to {e}. Retrying...")
             return self.determine_edit(user_input, retries - 1)

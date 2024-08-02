@@ -1,0 +1,55 @@
+<example>
+
+Input:
+<terraform_file>
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_instance" "c4_8xlarge_instance" {
+  ami           = "ami-xxxxxx"
+  instance_type = "c4.8xlarge"
+  
+  tags = {
+    Name = "C4-8xlarge-Instance"
+  }
+}
+</terraform_file>
+
+<desired_change>
+Use any ubuntu AMI, doesn't matter
+</desired_change>
+
+Output:
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-west-2"
+}
+
+resource "aws_instance" "c4_8xlarge_instance" {
+  ami           = "ami-0aff18ec83b712f05"
+  instance_type = "c4.8xlarge"
+  
+  tags = {
+    Name = "C4-8xlarge-Instance"
+  }
+}
+
+</example>

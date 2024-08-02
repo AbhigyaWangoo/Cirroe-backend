@@ -11,6 +11,7 @@ from include.utils import BASE_PROMPT_PATH, prompt_with_file
 from include.llm.gpt import GPTClient
 
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
+EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 CHAT_CACHE_LIMIT = 5
@@ -164,6 +165,10 @@ def get_memory(user_query: str) -> str:
     far. Takes the user query to append to the
     end.
     """
+
+    if len(chat_cache) == 0:
+        return user_query
+
     mem = """
         Here are a set of previous chats between you and the user. Use them to 
         inform your response to the user.
@@ -189,10 +194,11 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
     # 1. Get state.
     supa_client = SupaClient(user_id)
     client = GPTClient()
+    config = None
 
     memory_powered_query = get_memory(user_query)
     try:
-        supa_client.get_tf_config(chat_session_id)
+        config = supa_client.get_tf_config(chat_session_id)
         need_to_construct = False
     except TFConfigDNEException:
         # determine the type of query
@@ -205,8 +211,17 @@ def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
         # if never been queried before, only then can this be a construction action
         response = construction_wrapper(user_query, chat_session_id, supa_client)
     else:
-        response = handle_irrelevant_query(memory_powered_query, client)
-        supa_client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
+        response = prompt_with_file(
+            BASE_PROMPT_PATH + EDIT_OR_OTHER_PROMPT, memory_powered_query, client
+        )
+        need_to_edit = response.lower() == "true"
+
+        if need_to_edit:
+            # The config absoloutly should exist here.
+            # user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig
+            response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
+        else:
+            response = handle_irrelevant_query(memory_powered_query, client)
 
     back_and_forth_str = f"""
         q: {user_query}
