@@ -325,7 +325,7 @@ class DeployTFConfigAction(base.AbstractAction):
             diagnoser_decision = self.diagnoser.determine_config_deployability(state)
 
             #   2.a if not deployable, call diagnoser with same retry/missing info requests
-            if diagnoser_decision == DiagnoserState.DEPLOYABLE:
+            if diagnoser_decision != DiagnoserState.MISSING_OR_INVALID_DATA:
                 response, state = (
                     self.deploy_config()
                 )  # 2.b if deployable, attempt deployment.
