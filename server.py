@@ -15,17 +15,17 @@ app = FastAPI()
 # Define request models
 class QueryRequest(BaseModel):
     user_query: str
-    user_id: int
+    user_id: str
     chat_session_id: int
 
 
 class DeployRequest(BaseModel):
-    user_id: int
+    user_id: str
     chat_session_id: int
 
 
 class DestroyRequest(BaseModel):
-    user_id: int
+    user_id: str
     chat_session_id: int
 
 

@@ -87,7 +87,7 @@ def edit_wrapper(
         return None
 
 
-def setup_deployment_action(user_id: int, chat_session_id: int) -> DeployTFConfigAction:
+def setup_deployment_action(user_id: str, chat_session_id: int) -> DeployTFConfigAction:
     """
     Sets up and returns a deployment action for usage.
     """
@@ -115,7 +115,7 @@ def setup_deployment_action(user_id: int, chat_session_id: int) -> DeployTFConfi
     return deployment_action
 
 
-def destroy_wrapper(user_id: int, chat_session_id: int):
+def destroy_wrapper(user_id: str, chat_session_id: int):
     """
     Wrapper around a destruction action. Allows us to destroy
     a setup from the user's request.
@@ -129,7 +129,7 @@ def destroy_wrapper(user_id: int, chat_session_id: int):
     return action.destroy()
 
 
-def deploy_wrapper(user_id: int, chat_session_id: int) -> str:
+def deploy_wrapper(user_id: str, chat_session_id: int) -> str:
     """
     A wrapper around the deployment action. Allows us to deploy a
     cf stack from the user.
@@ -189,7 +189,7 @@ def get_memory(user_query: str) -> str:
     return mem + final_chunk
 
 
-def query_wrapper(user_query: str, user_id: int, chat_session_id: int) -> str:
+def query_wrapper(user_query: str, user_id: str, chat_session_id: int) -> str:
     """
     A wrapper around a Cirroe query. Determines whether the input query is a
     construction call, or an edit call. For now, we're not allowing deployments from chat.

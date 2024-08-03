@@ -9,9 +9,9 @@ from enum import Enum, StrEnum
 from typing import Tuple
 
 # DB Column names
-TF_CONFIG_COL_NAME = "CirrusTemplate"
-STATE_COL_NAME = "State"
-STACK_NAME_COL = "StackName"
+TF_CONFIG_COL_NAME = "config"
+STATE_COL_NAME = "state"
+STACK_NAME_COL = "config_name"
 ID = "id"
 
 
@@ -33,7 +33,7 @@ class ChatSessionState(Enum):
 
 
 class Table(StrEnum):
-    USERS = "Users"
+    USERS = "UserBindings"
     CHAT_SESSIONS = "ChatSessions"
     CHATS = "Chats"
 
@@ -51,7 +51,7 @@ class SupaClient:
     Supabase db client
     """
 
-    def __init__(self, user_id: int) -> None:
+    def __init__(self, user_id: str) -> None:
         load_dotenv()
 
         self.user_id = user_id
@@ -101,8 +101,12 @@ class SupaClient:
             .select(STACK_NAME_COL, TF_CONFIG_COL_NAME)
             .eq(ID, chat_session_id)
             .execute()
-        ).data[0]
+        ).data
 
+        if len(response) == 0:
+            raise TFConfigDNEException
+        
+        response = response[0]
         if response[TF_CONFIG_COL_NAME] is None:
             raise TFConfigDNEException
 
