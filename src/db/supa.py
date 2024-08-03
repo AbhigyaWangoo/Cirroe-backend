@@ -1,5 +1,7 @@
 from src.model.stack import TerraformConfig
 from include.utils import hash_str
+from typeguard import typechecked
+from uuid import UUID
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -45,13 +47,13 @@ class TFConfigDNEException(Exception):
 
     pass
 
-
+@typechecked
 class SupaClient:
     """
     Supabase db client
     """
 
-    def __init__(self, user_id: str) -> None:
+    def __init__(self, user_id: UUID) -> None:
         load_dotenv()
 
         self.user_id = user_id
@@ -91,27 +93,28 @@ class SupaClient:
 
         return response
 
-    def get_tf_config(self, chat_session_id: int) -> TerraformConfig:
+    def get_tf_config(self, chat_session_id: UUID) -> TerraformConfig:
         """
         Given the chat session id, get the tf config.
         """
 
+        val = chat_session_id
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .select(STACK_NAME_COL, TF_CONFIG_COL_NAME)
-            .eq(ID, chat_session_id)
+            .eq(ID, str(val))
             .execute()
         ).data
 
         if len(response) == 0:
             raise TFConfigDNEException
-        
+
         response = response[0]
         if response[TF_CONFIG_COL_NAME] is None:
             raise TFConfigDNEException
 
         if response[STACK_NAME_COL] is None:
-            new_name = hash_str(str(chat_session_id))
+            new_name = hash_str(chat_session_id)
             print(
                 f"Name of stack with id {chat_session_id} was none. setting it to {new_name}"
             )
@@ -123,7 +126,8 @@ class SupaClient:
 
         return TerraformConfig(response[TF_CONFIG_COL_NAME], response[STACK_NAME_COL])
 
-    def edit_entire_tf_config(self, chat_session_id: int, new_config: TerraformConfig):
+    @typechecked
+    def edit_entire_tf_config(self, chat_session_id: UUID, new_config: TerraformConfig):
         """
         Alter an existing cf stack with the new one.
         """
@@ -143,7 +147,7 @@ class SupaClient:
         return response
 
     def update_chat_session_state(
-        self, chat_session_id: int, new_state: ChatSessionState
+        self, chat_session_id: UUID, new_state: ChatSessionState
     ):
         """
         Alter the state of a chat session
@@ -158,7 +162,7 @@ class SupaClient:
 
         return response
 
-    def get_chat_session_state(self, chat_session_id: int) -> ChatSessionState:
+    def get_chat_session_state(self, chat_session_id: UUID) -> ChatSessionState:
         """
         Get the state of a chat session
         """

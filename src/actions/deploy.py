@@ -1,6 +1,6 @@
 from typing import Any, Tuple, List
 import json
-import boto3
+from uuid import UUID
 from python_terraform import *
 from . import base
 from collections import deque
@@ -145,7 +145,7 @@ class DeployTFConfigAction(base.AbstractAction):
     def __init__(
         self,
         user_config: TerraformConfig,
-        chat_session_id: int,
+        chat_session_id: UUID,
         state_manager: SupaClient,
         # user_aws_secret_key: str,
         # user_aws_access_key_id: str,
