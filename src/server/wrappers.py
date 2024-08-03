@@ -15,9 +15,6 @@ CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
 EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
-CHAT_CACHE_LIMIT = 5
-chat_cache = deque(maxlen=CHAT_CACHE_LIMIT)
-
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -163,33 +160,6 @@ def handle_irrelevant_query(query: str, client: GPTClient) -> str:
     return response
 
 
-def get_memory(user_query: str) -> str:
-    """
-    Returns a perfect string of the memory
-    from the last few chats from the user so
-    far. Takes the user query to append to the
-    end.
-    """
-
-    if len(chat_cache) == 0:
-        return user_query
-
-    mem = """
-        Here are a set of previous chats between you and the user. Use them to 
-        inform your response to the user.
-    """
-
-    for chat in chat_cache:
-        mem += chat
-
-    final_chunk = f"""
-        Now, here is the new query from the user.
-        {user_query}
-    """
-
-    return mem + final_chunk
-
-
 def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     """
     A wrapper around a Cirroe query. Determines whether the input query is a
@@ -201,7 +171,7 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     client = GPTClient()
     config = None
 
-    memory_powered_query = get_memory(user_query)
+    memory_powered_query = supa_client.get_memory_str(chat_session_id, user_query)
     try:
         config = supa_client.get_tf_config(chat_session_id)
         need_to_construct = False
@@ -227,10 +197,6 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
         else:
             response = handle_irrelevant_query(memory_powered_query, client)
 
-    back_and_forth_str = f"""
-        q: {user_query}
-        a: {response}
-    """
-    chat_cache.append(back_and_forth_str)
+    supa_client.add_chat(chat_session_id, user_query, response)
 
     return response

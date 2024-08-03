@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from supabase.client import ClientOptions
+from collections import deque
 from enum import Enum, StrEnum
 
 from typing import Tuple, List, Dict
@@ -19,6 +20,8 @@ ID = "id"
 USER_MSG = "user_msg"
 SYSTEM_MSG = "system_msg"
 CHAT_SESSION_ID = "chat_session_id"
+
+MEM_CACHE_LIMIT = 5
 
 class Operation(Enum):
     CREATE = 0
@@ -63,6 +66,7 @@ class SupaClient:
         url: str = os.environ.get("SUPABASE_URL")
         key: str = os.environ.get("SUPABASE_API_KEY")
         self.supabase: Client = None
+        self.memory_caches: Dict[UUID, deque] = {}
 
         try:
             self.supabase = create_client(
@@ -208,6 +212,11 @@ class SupaClient:
             .execute()
         )
 
+        if chat_session_id not in self.memory_caches:
+            self.__init_memory_cache(chat_session_id)
+
+        self.memory_caches[chat_session_id].append({USER_MSG: user_msg, SYSTEM_MSG: system_msg})
+
         return response
 
     def get_chats(self, chat_session_id: UUID) -> List[Dict[str, str]]:
@@ -230,3 +239,47 @@ class SupaClient:
         )
 
         return response.data
+
+    def get_memory_str(self, chat_session_id: UUID, user_query: str) -> str:
+        """
+        Returns a perfect string of the memory
+        from the last few chats from the user so
+        far. Takes the user query to append to the
+        end.
+        """
+
+        if chat_session_id not in self.memory_caches:
+            self.__init_memory_cache(chat_session_id)
+
+            if len(self.memory_caches[chat_session_id]) == 0:
+                return user_query
+
+        mem = """
+            Here are a set of previous chats between you and the user. Use them to 
+            inform your response to the user.
+        """
+
+        for chat in self.memory_caches[chat_session_id]:
+            chat_str = f"""
+            user chat: {chat[USER_MSG]}
+            system chat: {chat[SYSTEM_MSG]}
+            """
+            mem += chat_str
+
+        final_chunk = f"""
+            Now, here is the new query from the user.
+            {user_query}
+        """
+
+        return mem + final_chunk
+
+    def __init_memory_cache(self, chat_session_id: UUID):
+        """
+        Adds a chat cache for that provided chat session id.
+        
+        mem caches are used just for llm memory. They provide no
+        consistancy gaurentees with the actual cache memory.
+        """
+        chats = self.get_chats(chat_session_id)
+        mem_cache = deque(chats, maxlen=MEM_CACHE_LIMIT)
+        self.memory_caches[chat_session_id] = mem_cache
