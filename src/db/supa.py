@@ -8,7 +8,7 @@ from supabase import create_client, Client
 from supabase.client import ClientOptions
 from enum import Enum, StrEnum
 
-from typing import Tuple
+from typing import Tuple, List, Dict
 
 # DB Column names
 TF_CONFIG_COL_NAME = "config"
@@ -16,6 +16,9 @@ STATE_COL_NAME = "state"
 STACK_NAME_COL = "config_name"
 ID = "id"
 
+USER_MSG = "user_msg"
+SYSTEM_MSG = "system_msg"
+CHAT_SESSION_ID = "chat_session_id"
 
 class Operation(Enum):
     CREATE = 0
@@ -187,3 +190,43 @@ class SupaClient:
         secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
         access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
         return secret, access
+
+    def add_chat(self, chat_session_id: UUID, user_msg: str, system_msg: str):
+        """
+        Adds a 'back and forth' message between the user and the system
+        """
+
+        response = (
+            self.supabase.table(Table.CHATS)
+            .insert(
+                {
+                    CHAT_SESSION_ID: str(chat_session_id),
+                    USER_MSG: user_msg,
+                    SYSTEM_MSG: system_msg
+                }
+            )
+            .execute()
+        )
+
+        return response
+
+    def get_chats(self, chat_session_id: UUID) -> List[Dict[str, str]]:
+        """
+        Returns chats in this format:
+        
+        [
+            {
+                system: <system chat>,
+                user: <user chat>
+            }
+        ]
+        """
+
+        response = (
+            self.supabase.table(Table.CHATS)
+            .select(USER_MSG, SYSTEM_MSG)
+            .eq(CHAT_SESSION_ID, chat_session_id)
+            .execute()
+        )
+
+        return response.data
