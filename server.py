@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+from uuid import UUID
 
 from src.server.wrappers import query_wrapper, deploy_wrapper, destroy_wrapper
 
@@ -15,18 +16,18 @@ app = FastAPI()
 # Define request models
 class QueryRequest(BaseModel):
     user_query: str
-    user_id: str
-    chat_session_id: int
+    user_id: UUID
+    chat_session_id: UUID
 
 
 class DeployRequest(BaseModel):
-    user_id: str
-    chat_session_id: int
+    user_id: UUID
+    chat_session_id: UUID
 
 
 class DestroyRequest(BaseModel):
-    user_id: str
-    chat_session_id: int
+    user_id: UUID
+    chat_session_id: UUID
 
 
 # Synchronous endpoints
