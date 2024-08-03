@@ -1,4 +1,5 @@
 from src.actions.construct import ConstructTFConfigAction
+from uuid import UUID
 from src.actions.edit import EditTFConfigAction
 import shutil
 from src.actions.deploy import DeployTFConfigAction, ERROR_RESPONSE
@@ -19,7 +20,7 @@ chat_cache = deque(maxlen=CHAT_CACHE_LIMIT)
 
 
 def construction_wrapper(
-    user_query: str, chat_session_id: int, client: SupaClient
+    user_query: str, chat_session_id: UUID, client: SupaClient
 ) -> str:
     """
     Constructs a terraform config based off user query. Persists config in supabase and updates
@@ -51,7 +52,7 @@ def construction_wrapper(
 
 
 def edit_wrapper(
-    user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig
+    user_query: str, chat_session_id: UUID, client: SupaClient, config: TerraformConfig
 ) -> str | None:
     """
     Using the user query, and the cf stack retrieved from supabase with the chat
@@ -87,7 +88,7 @@ def edit_wrapper(
         return None
 
 
-def setup_deployment_action(user_id: str, chat_session_id: int) -> DeployTFConfigAction:
+def setup_deployment_action(user_id: UUID, chat_session_id: UUID) -> DeployTFConfigAction:
     """
     Sets up and returns a deployment action for usage.
     """
@@ -115,7 +116,7 @@ def setup_deployment_action(user_id: str, chat_session_id: int) -> DeployTFConfi
     return deployment_action
 
 
-def destroy_wrapper(user_id: str, chat_session_id: int):
+def destroy_wrapper(user_id: UUID, chat_session_id: UUID):
     """
     Wrapper around a destruction action. Allows us to destroy
     a setup from the user's request.
@@ -129,7 +130,7 @@ def destroy_wrapper(user_id: str, chat_session_id: int):
     return action.destroy()
 
 
-def deploy_wrapper(user_id: str, chat_session_id: int) -> str:
+def deploy_wrapper(user_id: UUID, chat_session_id: UUID) -> str:
     """
     A wrapper around the deployment action. Allows us to deploy a
     cf stack from the user.
@@ -189,7 +190,7 @@ def get_memory(user_query: str) -> str:
     return mem + final_chunk
 
 
-def query_wrapper(user_query: str, user_id: str, chat_session_id: int) -> str:
+def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     """
     A wrapper around a Cirroe query. Determines whether the input query is a
     construction call, or an edit call. For now, we're not allowing deployments from chat.
@@ -221,8 +222,7 @@ def query_wrapper(user_query: str, user_id: str, chat_session_id: int) -> str:
         need_to_edit = response.lower() == "true"
 
         if need_to_edit:
-            # The config absoloutly should exist here.
-            # user_query: str, chat_session_id: str, client: SupaClient, config: TerraformConfig
+            # The config def should exist here.
             response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
         else:
             response = handle_irrelevant_query(memory_powered_query, client)
