@@ -1,5 +1,5 @@
 from typing import Any, Union
-import json
+
 from . import base
 
 from src.model.stack import TerraformConfig
@@ -22,6 +22,39 @@ class ConstructTFConfigAction(base.AbstractAction):
         self.test_client = test_client
         super().__init__()
 
+    def get_construction_prompt(self, user_query: str) -> str:
+        """
+        Constructs a construction prompt from the provided user query
+        """
+        return f"""
+        You are a skilled cloud engineer tasked with creating a Terraform configuration file based on a user's description. Your goal is to construct a complete, deployable Terraform template that matches the described architecture's functionality.
+
+        Here is the description of the Terraform template to be created:
+        <terraform_description>
+        {user_query}
+        </terraform_description>
+
+        Follow these steps to create the Terraform configuration:
+
+        1. Carefully analyze the provided description to identify all required resources and their relationships.
+        2. Create a terraform configuration file with all necessary resource blocks and their configurations.
+        3. Include any required provider blocks at the beginning of the file.
+        4. Create and use all dependent resources necessary to ensure the template is deployable.
+        5. Choose appropriate resource names that reflect their purpose in the architecture.
+        6. If you are unsure about any resource values, use 'xxxxxx' to denote an unknown value.
+        7. Ensure all resources are properly linked and dependencies are correctly specified.
+
+        Your output must be in perfect Terraform configuration file format. Do not include any comments or any text that would violate Terraform syntax. The output should be ready to be loaded into a file and run without any modifications.
+
+        Remember:
+        - Do not output anything except for the Terraform code.
+        - Do not include any explanations, comments, or additional text.
+        - Ensure the configuration is as complete as possible based on the given description.
+        - Use 'xxxxxx' for any values that are not specified in the description or that you're unsure about.
+
+        Begin your output with the provider block (if necessary) and continue with the resource blocks. Do not include any other text or formatting outside of the Terraform configuration syntax.
+        """
+
     def _extract_template(self, input: str, retries: int = 3) -> TerraformConfig:
         """
         helper fn to extract a cf template from an input
@@ -30,11 +63,11 @@ class ConstructTFConfigAction(base.AbstractAction):
             if self.test_client is None:
                 self.test_client = self.claude_client
 
-            tf_template = prompt_with_file(
-                BASE_PROMPT_PATH + CONSTRUCT_CF_PROMPT,
-                input,
-                self.test_client,
-                is_json=False,
+            tf_template = self.claude_client.query(
+                self.get_construction_prompt(input),
+                "",
+                False,
+                temperature=0.8
             )
         except Exception as e:
             print(f"Couldn't extract config because of {e}. Retrying...")
