@@ -225,8 +225,10 @@ class SupaClient:
 
         # Here, assumes that the user successfully triggers a chat. Thus, we decrement.
         self.supabase.rpc("decrement", {
-                                        "user_id": self.user_id, 
-                                        "amount": CIRROE_CHAT_COST })
+                                        "user_id": str(self.user_id), 
+                                        "amount": CIRROE_CHAT_COST }).execute()
+        if USER_CREDITS in self.user_data:
+            self.user_data[USER_CREDITS] -= CIRROE_CHAT_COST
 
         return response
 
