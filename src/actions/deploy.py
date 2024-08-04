@@ -19,6 +19,7 @@ LOG_LIMIT = 100
 
 REQUEST_DEPLOYMENT_INFO_PROMPT = "request_deployment_info.txt"
 VERIFY_CONSTRUCTED_CONFIG = "verify_config.txt"
+USABILITY_AIDE = "return_how_to_use.txt"
 
 # Ret messages
 REDPLOYMENT_RESPONSE = "Looks like you already have attempted to deploy this infra before. Try opening up a new one."
@@ -147,22 +148,12 @@ class DeployTFConfigAction(base.AbstractAction):
         user_config: TerraformConfig,
         chat_session_id: UUID,
         state_manager: SupaClient,
-        # user_aws_secret_key: str,
-        # user_aws_access_key_id: str,
         tf_file_dir: str,
     ) -> None:
         """
         Constructs a user deployment action
         """
         super().__init__()
-        # self.user_secret_key = user_aws_secret_key
-        # self.user_aws_access_key_id = user_aws_access_key_id
-
-        # self.cf_client = boto3.client(
-        #     "cloudformation",
-        #     aws_access_key_id=self.user_aws_access_key_id,
-        #     aws_secret_access_key=self.user_secret_key,
-        # )
 
         self.user_config = user_config
         self.state_manager = state_manager
@@ -170,7 +161,7 @@ class DeployTFConfigAction(base.AbstractAction):
         self.diagnoser = Diagnoser(self.user_config, self.claude_client)
 
         self.tf_client = Terraform(working_dir=tf_file_dir)
-        self.tf_client.init()
+        self.tf_client.init() # TODO cache this. Takes a shit ton of time
         self.tf_file_dir = tf_file_dir
 
     def request_deployment_info(self) -> str:
@@ -179,19 +170,15 @@ class DeployTFConfigAction(base.AbstractAction):
         Consider's the user's input as well.
         """
 
-        prompt = f"""
-            terraform config:
-            {self.user_config.template}
-            
-            logs:
-            {json.dumps(', '.join(list(self.diagnoser.logs_cache)))}
-        """
+        memory = self.state_manager.get_memory_str(self.chat_session_id, None)
 
-        # TODO also use self.diagnoser.logs_cache to check exactly what is needed.
-        # TODO also check outputs if any and include as context
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, prompt, self.gpt_client
-        )
+        with open(BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, "r", encoding="utf8") as fp:
+            sys_prompt = fp.read()
+            sys_prompt = sys_prompt.format(
+                self.user_config.template,
+                json.dumps(', '.join(list(self.diagnoser.logs_cache))),
+                memory)
+            response = self.claude_client.query(sys_prompt, "", False, temperature=0.3)
 
         self.state_manager.update_chat_session_state(
             self.chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
@@ -255,6 +242,20 @@ class DeployTFConfigAction(base.AbstractAction):
 
         return str(response), state
 
+    def return_success_msg(self) -> str:
+        """
+        Returns a success message from the class stack. It should 
+        explain to the user how to properly use the infra they just 
+        deployed.
+        """
+
+        with open(BASE_PROMPT_PATH + USABILITY_AIDE, "r", encoding="utf8") as fp:
+            sys_prompt = fp.read()
+            sys_prompt = sys_prompt.format(self.user_config.template)
+            response = self.claude_client.query(sys_prompt, "", False, temperature=0.3)
+
+            return response
+
     def handle_failed_deployment(self, diagnosed_issue: DiagnoserState) -> str:
         """
         Handles a failed deployment with the Diagnoser class.
@@ -271,20 +272,23 @@ class DeployTFConfigAction(base.AbstractAction):
             return ret_msg
 
         try:
-            new_stack = self.diagnoser.fix_broken_config(diagnosed_issue)
             for i in range(NUM_RETRIES):
-                self.diagnoser.logs_cache.clear()
+                new_stack = self.diagnoser.fix_broken_config(diagnosed_issue)
+
+                # write new_stack back to file
+                file_path = os.path.join(self.tf_file_dir, new_stack.name)
+                with open(f"{file_path}.tf", "w", encoding="utf8") as file:
+                    file.write(new_stack.template)
+
                 _, state = self.deploy_config()
                 print(f"state after {i} deployment: {state}")
 
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
+                    self.diagnoser.logs_cache.clear()
                     self.user_config = new_stack
-                    return SUCCESS_RESPONSE
+                    self.state_manager.edit_entire_tf_config(self.chat_session_id, new_stack)
 
-                deployability = self.diagnoser.determine_config_deployability(state)
-                print(deployability)
-                print(f"logs length: {len(self.diagnoser.logs_cache)}")
-                new_stack = self.diagnoser.fix_broken_config(deployability)
+                    return self.return_success_msg()
 
             ret_msg = return_user_request()
         except TFConfigRequiresUserInfoException:
@@ -331,7 +335,7 @@ class DeployTFConfigAction(base.AbstractAction):
                 )  # 2.b if deployable, attempt deployment.
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
                     # 2.b.1 if succeeded, return msg saying deployment succeeded
-                    return SUCCESS_RESPONSE
+                    return self.return_success_msg()
 
             return self.handle_failed_deployment(
                 diagnoser_decision
@@ -346,7 +350,6 @@ class DeployTFConfigAction(base.AbstractAction):
 
         if state == ChatSessionState.DEPLOYMENT_FAILED:
             diagnoser_decision = self.diagnoser.determine_config_deployability(state)
-            print(f"Diagnosed decision in beginning: {diagnoser_decision}")
             response = self.handle_failed_deployment(diagnoser_decision)
 
         return response

@@ -14,6 +14,9 @@ the edited terraform config.
 If you encounter 'xxxxxxxx' placeholders, replace them with appropriate values if possible. Only edit components that are clearly incorrect
 and directly related to the errors in the logs. Your output should be a complete, valid Terraform configuration in HCL format, ready to be deployed.
 
+when formulating your ouput, provide only the updated Terraform configuration and NOTHING ELSE. This configuration will be 
+directly written to a file, and executed, so it must be in perfect hashicorp language.
+
 Example error to look for:
 "Error: creating ELBv2 network Load Balancer: InvalidSubnet: VPC has no internet gateway"
 

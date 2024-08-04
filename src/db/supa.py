@@ -9,7 +9,7 @@ from supabase.client import ClientOptions
 from collections import deque
 from enum import Enum, StrEnum
 
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Union
 
 # DB Column names
 TF_CONFIG_COL_NAME = "config"
@@ -253,7 +253,7 @@ class SupaClient:
 
         return response.data
 
-    def get_memory_str(self, chat_session_id: UUID, user_query: str) -> str:
+    def get_memory_str(self, chat_session_id: UUID, user_query: Union[str, None]) -> Union[str, None]:
         """
         Returns a perfect string of the memory
         from the last few chats from the user so
@@ -279,12 +279,15 @@ class SupaClient:
             """
             mem += chat_str
 
-        final_chunk = f"""
-            Now, here is the new query from the user.
-            {user_query}
-        """
+        if user_query is not None:
+            final_chunk = f"""
+                Now, here is the new query from the user.
+                {user_query}
+            """
 
-        return mem + final_chunk
+            mem += final_chunk
+
+        return mem
 
     def get_user_data(self, *columns):
         """
