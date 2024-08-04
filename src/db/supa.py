@@ -21,7 +21,13 @@ USER_MSG = "user_msg"
 SYSTEM_MSG = "system_msg"
 CHAT_SESSION_ID = "chat_session_id"
 
+USER_CREDITS = "credits"
+USER_ID = "user_id"
+
 MEM_CACHE_LIMIT = 5
+
+# Cost enforcement
+CIRROE_CHAT_COST = 0.1
 
 class Operation(Enum):
     CREATE = 0
@@ -41,7 +47,7 @@ class ChatSessionState(Enum):
 
 
 class Table(StrEnum):
-    USERS = "UserBindings"
+    USERS = "UserMetadata"
     CHAT_SESSIONS = "ChatSessions"
     CHATS = "Chats"
 
@@ -67,6 +73,7 @@ class SupaClient:
         key: str = os.environ.get("SUPABASE_API_KEY")
         self.supabase: Client = None
         self.memory_caches: Dict[UUID, deque] = {}
+        self.user_data = {}
 
         try:
             self.supabase = create_client(
@@ -105,11 +112,10 @@ class SupaClient:
         Given the chat session id, get the tf config.
         """
 
-        val = chat_session_id
         response = (
             self.supabase.table(Table.CHAT_SESSIONS)
             .select(STACK_NAME_COL, TF_CONFIG_COL_NAME)
-            .eq(ID, str(val))
+            .eq(ID, str(chat_session_id))
             .execute()
         ).data
 
@@ -217,6 +223,11 @@ class SupaClient:
 
         self.memory_caches[chat_session_id].append({USER_MSG: user_msg, SYSTEM_MSG: system_msg})
 
+        # Here, assumes that the user successfully triggers a chat. Thus, we decrement.
+        self.supabase.rpc("decrement", {
+                                        "user_id": self.user_id, 
+                                        "amount": CIRROE_CHAT_COST })
+
         return response
 
     def get_chats(self, chat_session_id: UUID) -> List[Dict[str, str]]:
@@ -272,6 +283,34 @@ class SupaClient:
         """
 
         return mem + final_chunk
+
+    def get_user_data(self, *columns):
+        """
+        Gets user data based on requested columns
+        """
+        response = (
+            self.supabase.table(Table.USERS)
+            .select(*columns)
+            .eq(USER_ID, str(self.user_id))
+            .execute()
+        ).data[0]
+
+        self.user_data.update(response)
+
+        return response
+
+    def user_can_query(self) -> bool:
+        """
+        Checks to see if the user's credits - CIRROE_CHAT_COST >= 0.
+        """
+
+        # 1. get user credit count
+        if USER_CREDITS not in self.user_data:
+            self.get_user_data(USER_CREDITS)
+
+        user_credits = self.user_data[USER_CREDITS]
+
+        return user_credits - CIRROE_CHAT_COST >= 0
 
     def __init_memory_cache(self, chat_session_id: UUID):
         """
