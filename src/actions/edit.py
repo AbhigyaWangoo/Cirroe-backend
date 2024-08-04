@@ -5,7 +5,6 @@ import json
 from src.model.stack import TerraformConfig
 from include.utils import BASE_PROMPT_PATH, prompt_with_file
 
-EDIT_CONFIG_PROMPT = "edit_stack.txt"
 EDIT_CONFIG_EXAMPLES = "edit_stack_examples.txt"
 DESCRIBE_EDIT_PROMPT = "describe_edit.txt"
 
@@ -47,6 +46,7 @@ class EditTFConfigAction(base.AbstractAction):
         - Do not add any comments or explanations to the Terraform file.
         - Ensure the output is a valid Terraform file that can be deployed without issues.
         - Do not include any text before or after the Terraform file content in your output.
+        - If anything is marked with an 'xxxxxx', that means that specific information is missing and is needed for a complete terraform file.
 
         Here is an example:
 

@@ -7,7 +7,6 @@ from include.llm.base import AbstractLLMClient
 
 from include.utils import prompt_with_file, BASE_PROMPT_PATH
 
-CONSTRUCT_CF_PROMPT = "extract_tf_config.txt"
 COALESCE_CONSTRUCTION_RESPONSE = "coalesce_response.txt"
 
 
