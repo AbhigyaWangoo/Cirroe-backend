@@ -120,11 +120,13 @@ def destroy_wrapper(user_id: UUID, chat_session_id: UUID):
     """
     action = setup_deployment_action(user_id, chat_session_id)
 
+    response = action.destroy()
+
     dir_path = os.path.join("include/data/", str(chat_session_id))
     if os.path.exists(dir_path):
         shutil.rmtree(dir_path)
 
-    return action.destroy()
+    return response
 
 
 def deploy_wrapper(user_id: UUID, chat_session_id: UUID) -> str:

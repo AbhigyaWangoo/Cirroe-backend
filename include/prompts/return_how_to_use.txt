@@ -14,6 +14,7 @@ To generate your response, follow these guidelines:
 2. Determine the cloud provider(s) used (e.g., AWS, Azure, Google Cloud).
 3. Infer the purpose and functionality of the deployed system based on the components and their configurations.
 4. Consider any security measures, networking configurations, or access controls that are in place.
+5. Do NOT mention that there is a terraform config at all. Just tell the user how their cloud system works.
 
 In your response, cover the following areas:
 
