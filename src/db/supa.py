@@ -189,17 +189,17 @@ class SupaClient:
 
         return ChatSessionState[response.data[0][STATE_COL_NAME]]
 
-    def get_user_aws_creds(self) -> Tuple[str, str]:
+    def get_user_aws_preferences(self) -> Tuple[str, str, str]:
         """
         Returns the user's aws credentials in the following format:
-        aws_secret_key, aws_access_key_id
+        aws_secret_key, aws_access_key_id, region
 
         TODO as of now this just returns mine. Need to alter to provide
         user supplied aws creds.
         """
         secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
         access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
-        return secret, access
+        return secret, access, "us-west-2"
 
     def add_chat(self, chat_session_id: UUID, user_msg: str, system_msg: str):
         """

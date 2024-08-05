@@ -160,9 +160,25 @@ class DeployTFConfigAction(base.AbstractAction):
         self.chat_session_id = chat_session_id
         self.diagnoser = Diagnoser(self.user_config, self.claude_client)
 
-        self.tf_client = Terraform(working_dir=tf_file_dir)
-        self.tf_client.init() # TODO cache this. Takes a shit ton of time
         self.tf_file_dir = tf_file_dir
+        self.tf_client = self.init_tf_workspace()
+
+    def init_tf_workspace(self) -> Terraform:
+        """
+        Sets up the terraform workspace with proper credentials.
+        """
+        tf = Terraform(working_dir=self.tf_file_dir)
+        tf.create_workspace(str(self.chat_session_id))
+
+        # Setting credentials
+        secret, access, region = self.state_manager.get_user_aws_preferences()
+        os.environ['AWS_ACCESS_KEY_ID'] = access
+        os.environ['AWS_SECRET_ACCESS_KEY'] = secret
+        os.environ['AWS_DEFAULT_REGION'] = region
+
+        tf.init()
+
+        return tf
 
     def request_deployment_info(self) -> str:
         """
