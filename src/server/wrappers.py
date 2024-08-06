@@ -3,7 +3,7 @@ from uuid import UUID
 from src.actions.edit import EditTFConfigAction
 import shutil
 from src.actions.deploy import DeployTFConfigAction, ERROR_RESPONSE
-from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException
+from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException, CredentialsNotProvidedException
 from src.model.stack import TerraformConfig
 import os
 
@@ -15,6 +15,7 @@ EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
+CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info."
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -118,7 +119,10 @@ def destroy_wrapper(user_id: UUID, chat_session_id: UUID):
     Wrapper around a destruction action. Allows us to destroy
     a setup from the user's request.
     """
-    action = setup_deployment_action(user_id, chat_session_id)
+    try:
+        action = setup_deployment_action(user_id, chat_session_id)
+    except CredentialsNotProvidedException:
+        return CREDENTIALS_NOT_PROVIDED
 
     response = action.destroy()
 
@@ -136,7 +140,10 @@ def deploy_wrapper(user_id: UUID, chat_session_id: UUID) -> str:
     A wrapper around the deployment action. Allows us to deploy a
     cf stack from the user.
     """
-    deployment_action = setup_deployment_action(user_id, chat_session_id)
+    try:
+        deployment_action = setup_deployment_action(user_id, chat_session_id)
+    except CredentialsNotProvidedException:
+        return CREDENTIALS_NOT_PROVIDED
 
     # 2. Attempt deployment, return trigger_action response
     response = deployment_action.trigger_action()

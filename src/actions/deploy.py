@@ -172,8 +172,8 @@ class DeployTFConfigAction(base.AbstractAction):
 
         # Setting credentials
         secret, access, region = self.state_manager.get_user_aws_preferences()
-        os.environ['AWS_ACCESS_KEY_ID'] = access
         os.environ['AWS_SECRET_ACCESS_KEY'] = secret
+        os.environ['AWS_ACCESS_KEY_ID'] = access
         os.environ['AWS_DEFAULT_REGION'] = region
 
         tf.init()

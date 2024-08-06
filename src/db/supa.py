@@ -21,6 +21,11 @@ USER_MSG = "user_msg"
 SYSTEM_MSG = "system_msg"
 CHAT_SESSION_ID = "chat_session_id"
 
+AWS_CREDENTIALS="aws_credentials"
+SECRET_KEY_NAME="AWS_SECRET_ACCESS_KEY"
+ACCESS_KEY_NAME="AWS_ACCESS_KEY_ID"
+REGION="REGION"
+
 USER_CREDITS = "credits"
 USER_ID = "user_id"
 
@@ -57,6 +62,13 @@ class TFConfigDNEException(Exception):
     Represents cases where a stack doesn't exist in db yet
     """
 
+    pass
+
+class CredentialsNotProvidedException(Exception):
+    """
+    Represents case where the user credentials aren't present in the db
+    """
+    
     pass
 
 @typechecked
@@ -197,9 +209,22 @@ class SupaClient:
         TODO as of now this just returns mine. Need to alter to provide
         user supplied aws creds.
         """
-        secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
-        access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
-        return secret, access, "us-west-2"
+
+        response = (
+            self.supabase.table(Table.USERS)
+            .select(AWS_CREDENTIALS)
+            .eq(USER_ID, self.user_id)
+            .execute()
+        ).data[0][AWS_CREDENTIALS]
+
+        if response is None:
+            raise CredentialsNotProvidedException
+
+        region = "us-west-2"
+        if REGION in response:
+            region = response[REGION]
+
+        return response[SECRET_KEY_NAME], response[ACCESS_KEY_NAME], region
 
     def add_chat(self, chat_session_id: UUID, user_msg: str, system_msg: str):
         """
