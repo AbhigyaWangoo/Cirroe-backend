@@ -13,62 +13,26 @@ load_dotenv()
 app = FastAPI()
 
 
-# Define request models
-class QueryRequest(BaseModel):
-    user_query: str
-    user_id: UUID
-    chat_session_id: UUID
-
-
-class DeployRequest(BaseModel):
-    user_id: UUID
-    chat_session_id: UUID
-
-
-class DestroyRequest(BaseModel):
-    user_id: UUID
-    chat_session_id: UUID
-
-
 # Synchronous endpoints
-@app.post("/query")
-def query(request: QueryRequest):
-    return {
-        "result": query_wrapper(
-            request.user_query, request.user_id, request.chat_session_id
-        )
-    }
+@app.get("/query")
+def query(user_query: str, user_id: str, chat_session_id: str):
+    user_uuid = UUID(user_id)
+    chat_session_uuid = UUID(chat_session_id.strip())
+    return {"result": query_wrapper(user_query, user_uuid, chat_session_uuid)}
 
 
-@app.post("/deploy")
-def deploy(request: DeployRequest):
-    return {"result": deploy_wrapper(request.user_id, request.chat_session_id)}
+@app.get("/deploy")
+def deploy(user_id: str, chat_session_id: str):
+    user_uuid = UUID(user_id)
+    chat_session_uuid = UUID(chat_session_id.strip())
+    return {"result": deploy_wrapper(user_uuid, chat_session_uuid)}
 
 
-@app.post("/destroy")
-def destroy(request: DestroyRequest):
-    return {"result": destroy_wrapper(request.user_id, request.chat_session_id)}
-
-
-# Asynchronous endpoints
-@app.post("/query_async")
-async def query_async(request: QueryRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(
-        query_wrapper, request.user_query, request.user_id, request.chat_session_id
-    )
-    return {"status": "Query task has been started in the background"}
-
-
-@app.post("/deploy_async")
-async def deploy_async(request: DeployRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(deploy_wrapper, request.user_id, request.chat_session_id)
-    return {"status": "Deploy task has been started in the background"}
-
-
-@app.post("/destroy_async")
-async def destroy_async(request: DestroyRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(destroy_wrapper, request.user_id, request.chat_session_id)
-    return {"status": "Destroy task has been started in the background"}
+@app.get("/destroy")
+def destroy(user_id: str, chat_session_id: str):
+    user_uuid = UUID(user_id)
+    chat_session_uuid = UUID(chat_session_id.strip())
+    return {"result": destroy_wrapper(user_uuid, chat_session_uuid)}
 
 
 # Main entry point to run the server
