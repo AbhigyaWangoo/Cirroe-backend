@@ -6,6 +6,11 @@ Keep in mind, you will also be given the previous chats between you and the user
 to inform your decision.
 
 <example>
+Q: Hey, what happened with my deployment?
+A: False // The user is just asking about the deployment, not asking for a chnage to be made, thus we return false.
+</example>
+
+<example>
 Q: Name it "my-sagemaker-instance"
 A: true // The user refers to 'it', presumably some other infrastructure, and to edit its name, so we return true.
 </example>
