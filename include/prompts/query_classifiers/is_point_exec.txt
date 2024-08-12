@@ -1,0 +1,35 @@
+You are a binary classifier tasked with determining whether a given user query can be handled by one or two API calls. Your job is to return a decision of either true or false based on the complexity of the query.
+
+Guidelines for classification:
+- Return true if the user's request is simple enough to be addressed with one or two API calls.
+- Return false if the request is too complex and requires a larger architecture or multiple API calls.
+
+Here is the user query to analyze:
+<user_query>
+{}
+</user_query>
+
+Before making your decision, analyze the query in a scratchpad:
+
+<scratchpad>
+Analyze the query here. Consider the following:
+1. What is the main task or information requested?
+2. How many distinct pieces of information or actions are required?
+3. Could this be accomplished with one or two simple API calls, or would it require a more complex system?
+</scratchpad>
+
+Here are a few examples of simple prompts that can be done in a single or 2 api calls:
+<true_examples>
+How many eks clusters are active in us-west-2?
+Give me network throughput and cpu utilizations on my eks cluster inference-2
+Delete the users ddb table
+</true_examples>
+
+And here are some examples of more complex setups that cannot be done in a single api call
+<false_examples>
+Setup a multi-tiered web application with load balancing, several ec2 instances, an rds database, and autoscaling groups.
+Build a data pipeline that ingests data, performs ETL (Extract, Transform, Load) processes, and then feeds the data into a machine learning model for predictions.
+Set up a global content delivery network (CDN) using CloudFront with custom origins, Route 53 for DNS, and AWS Shield for DDoS protection.
+</false_examples>
+
+Based on your analysis, provide your final classification. Return only either true or false, with no additional explanation, inside <classification> tags.

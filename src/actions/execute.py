@@ -3,10 +3,11 @@ from . import base
 import subprocess
 from uuid import UUID
 from include.llm.base import AbstractLLMClient
-from include.utils import BASE_PROMPT_PATH
+from include.utils import BASE_PROMPT_PATH, QUERY_CLASSIFIERS_BASE
 import uuid
 from collections import OrderedDict
 import shlex
+import re
 
 DEFAULT="default"
 
@@ -14,6 +15,7 @@ DEFAULT="default"
 EXECUTE_FPATH="execute/"
 GENERATE_API_CALL="generate_api_call.txt"
 CLEAN_RESPONSE="clean_response.txt"
+IS_POINT_EXEC="is_point_exec.txt"
 
 class AWSApiCall:
     def __init__(self, cli_changelog: OrderedDict[UUID, str], outputs: OrderedDict[UUID, str]) -> None:
@@ -138,21 +140,20 @@ class ExecutionAction(base.AbstractAction):
         # 3. ret response to user.
         return cleaned_response
 
-    def clean_input(self, input: str) -> str:
+    def is_point_execution(self, user_query: str) -> bool:
         """
-        Overriding parent fn to take an input from the user,
-        then generate a new prompt that specifically is focused
-        towards READING some data from aws.
-        
-        This function should be only used as a context provider to then 
-        pass into trigger_action. Not something the user will see.
+        Given a user's query, this fn decides whether it's a point 
+        execution and can be handled with some minor api calls or not.
         """
+        with open(BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + IS_POINT_EXEC, "r", encoding="utf8") as fp:
+            sys_prompt = fp.read()
+            prompt = sys_prompt.format(user_query)
 
-        return ""
+            response = self.gpt_client.query(prompt)
+            classification_match = re.search(r'<classification>(true|false)</classification>', response)
 
-    def requires_existing_resource_data(self, user_query: str) -> bool:
-        """
-        Given a user's query, this fn decides whether it's nessecary 
-        to read some resources or not.
-        """
+            if classification_match:
+                classification = bool(classification_match.group(1))
+                return classification
+
         return False

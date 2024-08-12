@@ -8,8 +8,9 @@ from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException, Cred
 from src.model.stack import TerraformConfig
 import os
 
-from include.utils import BASE_PROMPT_PATH, prompt_with_file
+from include.utils import BASE_PROMPT_PATH, prompt_with_file, QUERY_CLASSIFIERS_BASE
 from include.llm.gpt import GPTClient
+from include.llm.base import AbstractLLMClient
 
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
 EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
@@ -159,19 +160,18 @@ def deploy_wrapper(user_id: UUID, chat_session_id: UUID) -> str:
     return response
 
 
-def handle_irrelevant_query(query: str, client: GPTClient) -> str:
+def handle_irrelevant_query(query: str, client: AbstractLLMClient) -> str:
     """
     Hanldes and responds to a query that isn't clearly about creating or
     deploying infra. If the query is asking some questions about aws, or how
     this thing works, then answer, else respond with a msg saying pls be specific.
     """
-    response = prompt_with_file(
-        BASE_PROMPT_PATH + IRRELEVANT_QUERY_HANDLER,
-        query,
-        client,
-    )
 
-    return response
+    with open(BASE_PROMPT_PATH + IRRELEVANT_QUERY_HANDLER, "r", encoding="utf8") as fp:
+        prompt = fp.read()
+        new_prompt = prompt.format(query)
+
+        return client.query(new_prompt, "", is_json=False, temperature=0.5)
 
 def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaClient) -> str:
     """
@@ -210,33 +210,38 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     memory_powered_query = supa_client.get_memory_str(chat_session_id, user_query)
 
     state = supa_client.get_chat_session_state(chat_session_id)
-    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS:
-        return point_execution_wrapper(memory_powered_query, user_id, supa_client)
-
-    try:
-        config = supa_client.get_tf_config(chat_session_id)
-        need_to_construct = False
-    except TFConfigDNEException:
-        # determine the type of query
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + CONSTRUCT_OR_OTHER_PROMPT, memory_powered_query, client
-        )
-        need_to_construct = response.lower() == "true"
-
-    if need_to_construct:
-        # if never been queried before, only then can this be a construction action
-        response = construction_wrapper(user_query, chat_session_id, supa_client)
+    execution_action = ExecutionAction(str(user_id))
+    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS or execution_action.is_point_execution(user_query):
+        response = point_execution_wrapper(memory_powered_query, user_id, supa_client)
     else:
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + EDIT_OR_OTHER_PROMPT, memory_powered_query, client
-        )
-        need_to_edit = response.lower() == "true"
+        try:
+            config = supa_client.get_tf_config(chat_session_id)
+            need_to_construct = False
+        except TFConfigDNEException:
+            # determine the type of query
+            response = prompt_with_file(
+                BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + CONSTRUCT_OR_OTHER_PROMPT, 
+                memory_powered_query, 
+                client
+            )
+            need_to_construct = response.lower() == "true"
 
-        if need_to_edit:
-            # The config def should exist here.
-            response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
+        if need_to_construct:
+            # if never been queried before, only then can this be a construction action
+            response = construction_wrapper(user_query, chat_session_id, supa_client)
         else:
-            response = handle_irrelevant_query(memory_powered_query, client)
+            response = prompt_with_file(
+                BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + EDIT_OR_OTHER_PROMPT, 
+                memory_powered_query, 
+                client
+            )
+            need_to_edit = response.lower() == "true"
+
+            if need_to_edit:
+                # The config def should exist here.
+                response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
+            else:
+                response = handle_irrelevant_query(memory_powered_query, client)
 
     supa_client.add_chat(chat_session_id, user_query, response)
 
