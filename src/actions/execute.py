@@ -3,7 +3,7 @@ from . import base
 import subprocess
 from uuid import UUID
 from include.llm.base import AbstractLLMClient
-from include.utils import prompt_with_file, BASE_PROMPT_PATH
+from include.utils import BASE_PROMPT_PATH
 import uuid
 from collections import OrderedDict
 import shlex

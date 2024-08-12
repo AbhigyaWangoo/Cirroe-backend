@@ -1,4 +1,5 @@
 from src.actions.construct import ConstructTFConfigAction
+from src.actions.execute import ExecutionAction
 from uuid import UUID
 from src.actions.edit import EditTFConfigAction
 import shutil
@@ -16,6 +17,9 @@ IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
 CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info."
+
+# AWS_CREDENTIALS_FILE="~/.aws/credentials"
+AWS_CREDENTIALS_FILE = os.path.expanduser('~/.aws/credentials')
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -169,6 +173,24 @@ def handle_irrelevant_query(query: str, client: GPTClient) -> str:
 
     return response
 
+def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaClient) -> str:
+    """
+    A wrapper around point executions. Check the ExecutionAction class for more info.
+    """
+
+    secret, access, region = supa_client.get_user_aws_preferences()
+
+    with open(AWS_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
+        creds = fp.read()
+        if str(user_id) not in creds:
+            with open(AWS_CREDENTIALS_FILE, "a", encoding="utf8") as fpw:
+                new_profile = f"\n[{str(user_id)}]\naws_access_key_id = {access}\naws_secret_access_key = {secret}\nregion = {region}"
+
+                fpw.write(new_profile)
+
+        action = ExecutionAction(str(user_id))
+
+        return action.trigger_action(user_query)
 
 def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     """
@@ -186,6 +208,11 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
         return FILL_UP_MORE_CREDITS
 
     memory_powered_query = supa_client.get_memory_str(chat_session_id, user_query)
+
+    state = supa_client.get_chat_session_state(chat_session_id)
+    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS:
+        return point_execution_wrapper(memory_powered_query, user_id, supa_client)
+
     try:
         config = supa_client.get_tf_config(chat_session_id)
         need_to_construct = False
