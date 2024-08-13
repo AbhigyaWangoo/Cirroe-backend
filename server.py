@@ -37,11 +37,11 @@ def destroy(user_id: str, chat_session_id: str):
 # Main entry point to run the server
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    frontend_port = int(os.getenv("FRONTEND_PORT", 8000))
+    frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[f"http://localhost:{frontend_port}"],
+        allow_origins=[frontend_origin],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
