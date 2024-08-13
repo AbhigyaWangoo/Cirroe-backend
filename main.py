@@ -45,18 +45,7 @@ prompt_examples = {
     ]
 }
 
-# ex = Extractor("include/cfrepo", None)
+from src.server.wrappers import query_wrapper
+from uuid import UUID
 
-# ex.get_dataset()
-
-from src.actions.deploy import DeployTFConfigAction
-from src.db.supa import SupaClient
-import os
-
-c = SupaClient(3)
-config = c.get_tf_config(10)
-
-secret = os.environ.get("DEMO_AWS_SECRET_ACCESS_KEY", "")
-access = os.environ.get("DEMO_AWS_ACCESS_KEY_ID", "")
-
-action = DeployTFConfigAction(config, 10, c, secret, access, "testdir")
+print(query_wrapper("Interesting, can you tell me what instances I have active?", UUID("41ed2729-1790-4428-a9da-d73c7ebee679"), UUID("b4ae0bfc-bf2b-420f-b0f3-11abba0371c4")))
