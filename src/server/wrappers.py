@@ -211,7 +211,7 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
 
     state = supa_client.get_chat_session_state(chat_session_id)
     execution_action = ExecutionAction(str(user_id))
-    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS or execution_action.is_point_execution(user_query):
+    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS or execution_action.is_point_execution(memory_powered_query):
         response = point_execution_wrapper(memory_powered_query, user_id, supa_client)
     else:
         try:
