@@ -6,7 +6,7 @@ typeguard
 python-dotenv
 boto3
 anthropic
-fastapi
-uvicorn
+fastapi==0.100.0
+hypercorn==0.14.4
 predibase
 python-terraform
