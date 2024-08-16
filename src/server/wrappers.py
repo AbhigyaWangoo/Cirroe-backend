@@ -1,4 +1,5 @@
 from src.actions.construct import ConstructTFConfigAction
+import subprocess
 from src.actions.execute import ExecutionAction
 from uuid import UUID
 from src.actions.edit import EditTFConfigAction
@@ -9,7 +10,7 @@ from src.model.stack import TerraformConfig
 import os
 
 from include.utils import BASE_PROMPT_PATH, prompt_with_file, QUERY_CLASSIFIERS_BASE
-from include.llm.gpt import GPTClient
+from include.llm.claude import ClaudeClient
 from include.llm.base import AbstractLLMClient
 
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
@@ -180,17 +181,25 @@ def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaCli
 
     secret, access, region = supa_client.get_user_aws_preferences()
 
-    with open(AWS_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
-        creds = fp.read()
-        if str(user_id) not in creds:
-            with open(AWS_CREDENTIALS_FILE, "a", encoding="utf8") as fpw:
-                new_profile = f"\n[{str(user_id)}]\naws_access_key_id = {access}\naws_secret_access_key = {secret}\nregion = {region}"
+    def append_creds_to_file(aws_file: str, secret: str, access: str, region: str, mode: str="a"):
+        with open(aws_file, mode, encoding="utf8") as fpw:
+            if mode == "a":
+                fpw.write("\n")
 
-                fpw.write(new_profile)
+            new_profile = f"[{str(user_id)}]\naws_access_key_id = {access}\naws_secret_access_key = {secret}\nregion = {region}"
+            fpw.write(new_profile)
 
-        action = ExecutionAction(str(user_id))
+    if os.path.exists(AWS_CREDENTIALS_FILE):
+        with open(AWS_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
+            creds = fp.read()
+            if str(user_id) not in creds:
+                append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region)
 
-        return action.trigger_action(user_query)
+            action = ExecutionAction(str(user_id))
+    else:
+        append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region, "w")
+
+    return action.trigger_action(user_query)
 
 def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     """
@@ -200,7 +209,8 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
 
     # 1. Get state.
     supa_client = SupaClient(user_id)
-    client = GPTClient()
+    # client = GPTClient()
+    llm_client = ClaudeClient()
     config = None
 
     can_query = supa_client.user_can_query()
@@ -212,36 +222,47 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     state = supa_client.get_chat_session_state(chat_session_id)
     execution_action = ExecutionAction(str(user_id))
     if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS or execution_action.is_point_execution(memory_powered_query):
-        response = point_execution_wrapper(memory_powered_query, user_id, supa_client)
-    else:
         try:
-            config = supa_client.get_tf_config(chat_session_id)
+            response = point_execution_wrapper(memory_powered_query, user_id, supa_client)
+            supa_client.add_chat(chat_session_id, user_query, response)
+
+            return response
+        except subprocess.CalledProcessError:
+            # TODO Add metric
+            print("Point execution failed")
+
+    need_to_construct=True
+    try:
+        config = supa_client.get_tf_config(chat_session_id)
+        if len(config.template) > 0:
             need_to_construct = False
-        except TFConfigDNEException:
-            # determine the type of query
-            response = prompt_with_file(
-                BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + CONSTRUCT_OR_OTHER_PROMPT, 
-                memory_powered_query, 
-                client
-            )
-            need_to_construct = response.lower() == "true"
+    except TFConfigDNEException:
+        # determine the type of query
+        response = prompt_with_file(
+            BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + CONSTRUCT_OR_OTHER_PROMPT, 
+            memory_powered_query, 
+            llm_client,
+            is_json=False
+        )
+        need_to_construct = response.lower() == "true"
 
-        if need_to_construct:
-            # if never been queried before, only then can this be a construction action
-            response = construction_wrapper(user_query, chat_session_id, supa_client)
+    if need_to_construct:
+        # if never been queried before, only then can this be a construction action
+        response = construction_wrapper(user_query, chat_session_id, supa_client)
+    else:
+        response = prompt_with_file(
+            BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + EDIT_OR_OTHER_PROMPT, 
+            memory_powered_query, 
+            llm_client,
+            is_json=False
+        )
+        need_to_edit = response.lower() == "true"
+
+        if need_to_edit:
+            # The config def should exist here.
+            response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
         else:
-            response = prompt_with_file(
-                BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + EDIT_OR_OTHER_PROMPT, 
-                memory_powered_query, 
-                client
-            )
-            need_to_edit = response.lower() == "true"
-
-            if need_to_edit:
-                # The config def should exist here.
-                response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
-            else:
-                response = handle_irrelevant_query(memory_powered_query, client)
+            response = handle_irrelevant_query(memory_powered_query, llm_client)
 
     supa_client.add_chat(chat_session_id, user_query, response)
 
