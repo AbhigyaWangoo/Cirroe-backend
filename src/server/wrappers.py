@@ -20,8 +20,9 @@ IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
 CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info."
 
-# AWS_CREDENTIALS_FILE="~/.aws/credentials"
-AWS_CREDENTIALS_FILE = os.path.expanduser('~/.aws/credentials')
+AWS_CREDENTIALS_BASE="~/.aws"
+AWS_CREDENTIALS_FILE_PATH=f"{AWS_CREDENTIALS_BASE}/credentials"
+AWS_CREDENTIALS_FILE = os.path.expanduser(AWS_CREDENTIALS_FILE_PATH)
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -197,6 +198,7 @@ def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaCli
 
             action = ExecutionAction(str(user_id))
     else:
+        os.mkdir(AWS_CREDENTIALS_BASE)
         append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region, "w")
 
     return action.trigger_action(user_query)
