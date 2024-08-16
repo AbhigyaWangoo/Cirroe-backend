@@ -205,9 +205,6 @@ class SupaClient:
         """
         Returns the user's aws credentials in the following format:
         aws_secret_key, aws_access_key_id, region
-
-        TODO as of now this just returns mine. Need to alter to provide
-        user supplied aws creds.
         """
 
         response = (
