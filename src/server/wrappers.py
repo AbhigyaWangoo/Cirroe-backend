@@ -198,7 +198,7 @@ def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaCli
 
             action = ExecutionAction(str(user_id))
     else:
-        os.mkdir(AWS_CREDENTIALS_BASE)
+        os.mkdir(os.path.expanduser(AWS_CREDENTIALS_BASE))
         append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region, "w")
 
     return action.trigger_action(user_query)
