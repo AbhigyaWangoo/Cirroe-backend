@@ -27,6 +27,7 @@ class ConstructTFConfigAction(base.AbstractAction):
         """
         return f"""
         You are a skilled cloud engineer tasked with creating a Terraform configuration file based on a user's description. Your goal is to construct a complete, deployable Terraform template that matches the described architecture's functionality.
+        Assume that if the user does not describe some resource, it does not exist. You must create everything from complete scratch.
 
         Here is the description of the Terraform template to be created:
         <terraform_description>

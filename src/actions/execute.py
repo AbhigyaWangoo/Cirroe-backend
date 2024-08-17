@@ -1,4 +1,5 @@
 from typing import Any
+import shutil
 from . import base
 import logging
 import subprocess
@@ -75,6 +76,15 @@ class AWSExecutor():
 
         return new_call_uuid
 
+    def find_aws_executable(self) -> str:
+        """Find the AWS CLI executable in the system."""
+        aws_path = shutil.which('aws')
+
+        if aws_path is None:
+            raise FileNotFoundError("AWS CLI executable not found. Make sure it's installed correctly.")
+        
+        return aws_path
+
     def execute_api_call(self, call_uuid: UUID) -> str:
         """
         Executes an api call and gets the output
@@ -86,10 +96,12 @@ class AWSExecutor():
         # 2. trigger call
         api_call_splitted = shlex.split(api_call)
 
+        executable = self.find_aws_executable()
+        logging.debug(executable)
         for i, portion in enumerate(api_call_splitted):
             if portion == AWS:
                 # Use the full path to the AWS CLI executable
-                api_call_splitted[i] = AWS_PATH
+                api_call_splitted[i] = executable
 
         try:
             output = subprocess.check_output(api_call_splitted, stderr=subprocess.STDOUT)
