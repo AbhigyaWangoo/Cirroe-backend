@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "chmod +x ./setup.sh && ./setup.sh"
+    "buildCommand": "chmod +x ./install_aws_cli.sh && ./install_aws_cli.sh"
   },
   "deploy": {
     "startCommand": "hypercorn main:app --bind \"[::]:$PORT\""
