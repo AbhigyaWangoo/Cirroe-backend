@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-python3.12 -m venv venv
-source venv/bin/activate
+# python3.12 -m venv venv
+# source venv/bin/activate
 
 # Install unzip
 apt-get update && apt-get install -y unzip
@@ -18,4 +18,4 @@ aws --version
 # Clean up
 rm -rf aws awscliv2.zip
 
-pip3 install -r requirements.txt
+# pip3 install -r requirements.txt
