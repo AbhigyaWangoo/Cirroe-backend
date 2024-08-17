@@ -1,5 +1,6 @@
 from typing import Any
 from . import base
+import logging
 import subprocess
 from uuid import UUID
 from include.llm.base import AbstractLLMClient
@@ -16,6 +17,9 @@ EXECUTE_FPATH="execute/"
 GENERATE_API_CALL="generate_api_call.txt"
 CLEAN_RESPONSE="clean_response.txt"
 IS_POINT_EXEC="is_point_exec.txt"
+
+AWS="aws"
+AWS_PATH="/root/.local/bin/aws"
 
 class AWSApiCall:
     def __init__(self, cli_changelog: OrderedDict[UUID, str], outputs: OrderedDict[UUID, str]) -> None:
@@ -81,7 +85,20 @@ class AWSExecutor():
 
         # 2. trigger call
         api_call_splitted = shlex.split(api_call)
-        output = subprocess.check_output(api_call_splitted)
+
+        for i, portion in enumerate(api_call_splitted):
+            if portion == AWS:
+                # Use the full path to the AWS CLI executable
+                api_call_splitted[i] = AWS_PATH
+
+        try:
+            output = subprocess.check_output(api_call_splitted, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"AWS CLI command failed: {e.output.decode()}")
+            raise
+        except FileNotFoundError:
+            logging.error("AWS CLI executable not found. Make sure it's installed and in the correct location.")
+            raise
 
         # 3. get output
         return output
@@ -153,7 +170,7 @@ class ExecutionAction(base.AbstractAction):
             classification_match = re.search(r'<classification>(true|false)</classification>', response)
 
             if classification_match:
-                classification = bool(classification_match.group(1))
+                classification = "true" in classification_match.group(1).lower()
                 return classification
 
         return False
