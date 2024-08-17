@@ -3,6 +3,7 @@ import shutil
 from . import base
 import logging
 import subprocess
+import os
 from uuid import UUID
 from include.llm.base import AbstractLLMClient
 from include.utils import BASE_PROMPT_PATH, QUERY_CLASSIFIERS_BASE
@@ -78,12 +79,18 @@ class AWSExecutor():
 
     def find_aws_executable(self) -> str:
         """Find the AWS CLI executable in the system."""
-        aws_path = shutil.which('aws')
 
-        if aws_path is None:
-            raise FileNotFoundError("AWS CLI executable not found. Make sure it's installed correctly.")
-        
-        return aws_path
+        aws_paths = [
+            "/usr/local/bin/aws",  # Default installation path
+            "/usr/bin/aws",        # Alternative path
+            shutil.which('aws')    # Search in PATH
+        ]
+
+        for path in aws_paths:
+            if path and os.path.isfile(path):
+                return path
+
+        raise FileNotFoundError("AWS CLI executable not found. Make sure it's installed correctly.")
 
     def execute_api_call(self, call_uuid: UUID) -> str:
         """
