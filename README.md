@@ -40,5 +40,5 @@ Step-by-step instructions on how to set up the project locally follow.
 
 5. **Run the Cirroe server:**
     ```bash
-    python server.py
+    python main.py
     ```

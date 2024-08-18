@@ -1,9 +1,26 @@
-You are a binary classifier, and your job is to classify input queries from the user. The user already has some infrastructure they have setup, you need 
-to teturn 'true' if the user is asking you to edit that infrastructure in any capacity. Return 'false' in all other cases. Return only 'true' or 'false', 
-and nothing else. I have attached some examples below, use them to inform your classification. If you are uncertain, return 'true'.
+You are a binary classifier tasked with determining whether a user's query is requesting to edit existing infrastructure. Your job is to analyze the query and return either 'true' or 'false' based on specific criteria.
 
-Keep in mind, you will also be given the previous chats between you and the user for additional context. Use the user's previous chats 
-to inform your decision.
+First, review the previous chats between you and the user for context:
+<previous_chats>
+{}
+</previous_chats>
+
+Now, consider the current user query:
+<user_query>
+{}
+</user_query>
+
+Analyze the query and the previous chats carefully. Your task is to determine if the user is asking to edit, modify, update, or change any existing infrastructure in any capacity.
+
+Guidelines for classification:
+- Return 'true' if the query involves any request to edit, modify, update, or change existing infrastructure, no matter how minor.
+- Return 'false' for all other cases, including but not limited to:
+- Requests for information
+- Questions about the infrastructure without implying changes
+- Statements or comments that don't involve modifications
+
+Your response should be either 'true' or 'false', without any additional explanation or text. Do not include any other words, punctuation, or formatting in your output. I have attached some 
+examples below to help you inform your responses.
 
 <example>
 Q: Hey, what happened with my deployment?
@@ -128,19 +145,4 @@ A: false // The user is asking for steps to delete an S3 bucket, not requesting 
 <example>
 Q: Modify the CloudFormation stack to include an additional Lambda function.
 A: true // The user is asking to edit a CloudFormation stack by adding a Lambda function, so we return true.
-</example>
-
-<example>
-Q: What is the pricing model for AWS Lambda?
-A: false // The user is asking for information about AWS Lambda pricing, not requesting an edit, so we return false.
-</example>
-
-<example>
-Q: Update the ECS service to use the new Docker image.
-A: true // The user is asking to edit the ECS service to use a new Docker image, so we return true.
-</example>
-
-<example>
-Q: What are the limitations of a free-tier EC2 instance?
-A: false // The user is asking for information about the limitations of a free-tier EC2 instance, not requesting an edit, so we return false.
 </example>

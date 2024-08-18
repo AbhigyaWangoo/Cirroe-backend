@@ -18,18 +18,20 @@ Analyze the query here. Consider the following:
 3. Could this be accomplished with one or two simple API calls, or would it require a more complex system?
 </scratchpad>
 
-Here are a few examples of simple prompts that can be done in a single or 2 api calls:
+Here are a few examples of simple prompts that can be done in a single or 2 api calls, for which you should return 'true'.
 <true_examples>
 How many eks clusters are active in us-west-2?
 Give me network throughput and cpu utilizations on my eks cluster inference-2
 Delete the users ddb table
 </true_examples>
 
-And here are some examples of more complex setups that cannot be done in a single api call
+And here are some examples of more complex setups that cannot be done in a single api call, for which you should return 'false'.
 <false_examples>
 Setup a multi-tiered web application with load balancing, several ec2 instances, an rds database, and autoscaling groups.
 Build a data pipeline that ingests data, performs ETL (Extract, Transform, Load) processes, and then feeds the data into a machine learning model for predictions.
 Set up a global content delivery network (CDN) using CloudFront with custom origins, Route 53 for DNS, and AWS Shield for DDoS protection.
+setup a RAG agent in my aws account. My document corpus is in the s3 bucket hatch.resumes
+I'm not sure what you mean, I haven't created any lambda functions with code you can use for this.
 </false_examples>
 
 Based on your analysis, provide your final classification. Return only either true or false, with no additional explanation, inside <classification> tags.

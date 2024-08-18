@@ -13,6 +13,10 @@ from include.utils import BASE_PROMPT_PATH, prompt_with_file, QUERY_CLASSIFIERS_
 from include.llm.claude import ClaudeClient
 from include.llm.base import AbstractLLMClient
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 CONSTRUCT_OR_OTHER_PROMPT = "construct_or_other.txt"
 EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
@@ -20,9 +24,7 @@ IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
 CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info."
 
-AWS_CREDENTIALS_BASE="~/.aws"
-AWS_CREDENTIALS_FILE_PATH=f"{AWS_CREDENTIALS_BASE}/credentials"
-AWS_CREDENTIALS_FILE = os.path.expanduser(AWS_CREDENTIALS_FILE_PATH)
+AWS_SHARED_CREDENTIALS_FILE=os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -190,14 +192,13 @@ def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaCli
             new_profile = f"[{str(user_id)}]\naws_access_key_id = {access}\naws_secret_access_key = {secret}\nregion = {region}"
             fpw.write(new_profile)
 
-    if os.path.exists(AWS_CREDENTIALS_FILE):
-        with open(AWS_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
+    if os.path.exists(AWS_SHARED_CREDENTIALS_FILE):
+        with open(AWS_SHARED_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
             creds = fp.read()
             if str(user_id) not in creds:
-                append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region)
+                append_creds_to_file(AWS_SHARED_CREDENTIALS_FILE, secret, access, region)
     else:
-        os.mkdir(os.path.expanduser(AWS_CREDENTIALS_BASE))
-        append_creds_to_file(AWS_CREDENTIALS_FILE, secret, access, region, "w")
+        append_creds_to_file(AWS_SHARED_CREDENTIALS_FILE, secret, access, region, "w")
 
     action = ExecutionAction(str(user_id))
 
