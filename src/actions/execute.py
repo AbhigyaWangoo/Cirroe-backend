@@ -104,7 +104,6 @@ class AWSExecutor():
         api_call_splitted = shlex.split(api_call)
 
         executable = self.find_aws_executable()
-        logging.debug(executable)
         for i, portion in enumerate(api_call_splitted):
             if portion == AWS:
                 # Use the full path to the AWS CLI executable
@@ -113,10 +112,10 @@ class AWSExecutor():
         try:
             output = subprocess.check_output(api_call_splitted, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            logging.error(f"AWS CLI command failed: {e.output.decode()}")
+            logging.exception(f"AWS CLI command failed: {e.output.decode()}")
             raise
         except FileNotFoundError:
-            logging.error("AWS CLI executable not found. Make sure it's installed and in the correct location.")
+            logging.exception("AWS CLI executable not found. Make sure it's installed and in the correct location.")
             raise
 
         # 3. get output
