@@ -9,7 +9,6 @@ from include.llm.base import AbstractLLMClient
 from include.utils import BASE_PROMPT_PATH, QUERY_CLASSIFIERS_BASE
 import uuid
 from collections import OrderedDict
-import shlex
 import re
 
 DEFAULT="default"
@@ -101,16 +100,17 @@ class AWSExecutor():
         api_call = self.api_call.cli_changelog[call_uuid]
 
         # 2. trigger call
-        api_call_splitted = shlex.split(api_call)
+        # api_call_splitted = shlex.split(api_call)
 
-        executable = self.find_aws_executable()
-        for i, portion in enumerate(api_call_splitted):
-            if portion == AWS:
-                # Use the full path to the AWS CLI executable
-                api_call_splitted[i] = executable
+        # executable = self.find_aws_executable()
+        # for i, portion in enumerate(api_call_splitted):
+        #     if portion == AWS:
+        #         # Use the full path to the AWS CLI executable
+        #         api_call_splitted[i] = executable
 
         try:
-            output = subprocess.check_output(api_call_splitted, stderr=subprocess.STDOUT)
+            # output = subprocess.check_output(api_call_splitted, stderr=subprocess.STDOUT)
+            output = os.popen(api_call).read()
         except subprocess.CalledProcessError as e:
             logging.exception(f"AWS CLI command failed: {e.output.decode()}")
             raise
