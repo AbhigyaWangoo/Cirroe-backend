@@ -238,6 +238,8 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
         except subprocess.CalledProcessError:
             # TODO Add metric
             print("Point execution failed")
+        except CredentialsNotProvidedException:
+            return CREDENTIALS_NOT_PROVIDED
 
     need_to_construct=True
     try:

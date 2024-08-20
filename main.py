@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from uuid import UUID
 
@@ -8,6 +9,13 @@ load_dotenv()
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://www.cirroe.com", "localhost:3000"],  # Add your Vercel frontend URL here
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Synchronous endpoints
 @app.get("/query")
