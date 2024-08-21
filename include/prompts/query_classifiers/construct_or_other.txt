@@ -6,6 +6,9 @@ Keep in mind, you will also be given the previous chats between you and the user
 to inform your decision.
 
 Examples:
+Q: I'm good. Maybe you can tell me a little bit about how amazon sqs works?
+A: false
+
 Q: Setup a Sagemaker endpoint running claude sonnet for inference.
 A: true // we return true here, because the user is asking us to setup a sagemaker endpoint
 

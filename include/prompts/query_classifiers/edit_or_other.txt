@@ -146,3 +146,8 @@ A: false // The user is asking for steps to delete an S3 bucket, not requesting 
 Q: Modify the CloudFormation stack to include an additional Lambda function.
 A: true // The user is asking to edit a CloudFormation stack by adding a Lambda function, so we return true.
 </example>
+
+<exmaple>
+Q: I'm good. Maybe you can tell me a little bit about how amazon sqs works?
+A: false
+</example>
