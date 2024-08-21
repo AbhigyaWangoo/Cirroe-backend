@@ -11,7 +11,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.cirroe.com", "localhost:3000"],  # Add your Vercel frontend URL here
+    allow_origins=["*"],  # Add your Vercel frontend URL here
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
