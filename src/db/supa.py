@@ -21,10 +21,10 @@ USER_MSG = "user_msg"
 SYSTEM_MSG = "system_msg"
 CHAT_SESSION_ID = "chat_session_id"
 
-AWS_CREDENTIALS="aws_credentials"
-SECRET_KEY_NAME="AWS_SECRET_ACCESS_KEY"
-ACCESS_KEY_NAME="AWS_ACCESS_KEY_ID"
-REGION="REGION"
+AWS_CREDENTIALS = "aws_credentials"
+SECRET_KEY_NAME = "AWS_SECRET_ACCESS_KEY"
+ACCESS_KEY_NAME = "AWS_ACCESS_KEY_ID"
+REGION = "REGION"
 
 USER_CREDITS = "credits"
 USER_ID = "user_id"
@@ -33,6 +33,7 @@ MEM_CACHE_LIMIT = 5
 
 # Cost enforcement
 CIRROE_CHAT_COST = 0.1
+
 
 class Operation(Enum):
     CREATE = 0
@@ -64,12 +65,14 @@ class TFConfigDNEException(Exception):
 
     pass
 
+
 class CredentialsNotProvidedException(Exception):
     """
     Represents case where the user credentials aren't present in the db
     """
-    
+
     pass
+
 
 @typechecked
 class SupaClient:
@@ -234,7 +237,7 @@ class SupaClient:
                 {
                     CHAT_SESSION_ID: str(chat_session_id),
                     USER_MSG: user_msg,
-                    SYSTEM_MSG: system_msg
+                    SYSTEM_MSG: system_msg,
                 }
             )
             .execute()
@@ -243,12 +246,14 @@ class SupaClient:
         if chat_session_id not in self.memory_caches:
             self.__init_memory_cache(chat_session_id)
 
-        self.memory_caches[chat_session_id].append({USER_MSG: user_msg, SYSTEM_MSG: system_msg})
+        self.memory_caches[chat_session_id].append(
+            {USER_MSG: user_msg, SYSTEM_MSG: system_msg}
+        )
 
         # Here, assumes that the user successfully triggers a chat. Thus, we decrement.
-        self.supabase.rpc("decrement", {
-                                        "user_id": str(self.user_id), 
-                                        "amount": CIRROE_CHAT_COST }).execute()
+        self.supabase.rpc(
+            "decrement", {"user_id": str(self.user_id), "amount": CIRROE_CHAT_COST}
+        ).execute()
         if USER_CREDITS in self.user_data:
             self.user_data[USER_CREDITS] -= CIRROE_CHAT_COST
 
@@ -257,7 +262,7 @@ class SupaClient:
     def get_chats(self, chat_session_id: UUID) -> List[Dict[str, str]]:
         """
         Returns chats in this format:
-        
+
         [
             {
                 system: <system chat>,
@@ -275,7 +280,9 @@ class SupaClient:
 
         return response.data
 
-    def get_memory_str(self, chat_session_id: UUID, user_query: Union[str, None]) -> Union[str, None]:
+    def get_memory_str(
+        self, chat_session_id: UUID, user_query: Union[str, None]
+    ) -> Union[str, None]:
         """
         Returns a perfect string of the memory
         from the last few chats from the user so
@@ -342,7 +349,7 @@ class SupaClient:
     def __init_memory_cache(self, chat_session_id: UUID):
         """
         Adds a chat cache for that provided chat session id.
-        
+
         mem caches are used just for llm memory. They provide no
         consistancy gaurentees with the actual cache memory.
         """

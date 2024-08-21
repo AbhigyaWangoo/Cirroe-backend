@@ -74,10 +74,7 @@ class EditTFConfigAction(base.AbstractAction):
             sys_prompt = self.get_structured_edit_prompt(user_input)
 
             new_config = self.claude_client.query(
-                user_input, 
-                sys_prompt, 
-                is_json=False,
-                temperature=0.7
+                user_input, sys_prompt, is_json=False, temperature=0.7
             )
 
         except Exception as e:

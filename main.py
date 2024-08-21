@@ -17,6 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Synchronous endpoints
 @app.get("/query")
 def query(user_query: str, user_id: str, chat_session_id: str):
@@ -37,6 +38,7 @@ def destroy(user_id: str, chat_session_id: str):
     user_uuid = UUID(user_id)
     chat_session_uuid = UUID(chat_session_id.strip())
     return {"result": destroy_wrapper(user_uuid, chat_session_uuid)}
+
 
 @app.get("/health")
 def test():

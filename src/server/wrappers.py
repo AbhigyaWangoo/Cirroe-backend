@@ -5,7 +5,12 @@ from uuid import UUID
 from src.actions.edit import EditTFConfigAction
 import shutil
 from src.actions.deploy import DeployTFConfigAction, ERROR_RESPONSE
-from src.db.supa import SupaClient, ChatSessionState, TFConfigDNEException, CredentialsNotProvidedException
+from src.db.supa import (
+    SupaClient,
+    ChatSessionState,
+    TFConfigDNEException,
+    CredentialsNotProvidedException,
+)
 from src.model.stack import TerraformConfig
 import os
 
@@ -22,10 +27,11 @@ EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
-CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info. Just navigate to the hamburger menu above, click \"Set AWS Credentials\", and fill in your AWS secret and access keys."
+CREDENTIALS_NOT_PROVIDED = 'Looks like you\'re missing some auth credentials. Please fill them in properly, or contact support for more info. Just navigate to the hamburger menu above, click "Set AWS Credentials", and fill in your AWS secret and access keys.'
 NOTHING_TO_DEPLOY = "User config dne. Setup deployment action shouldn't work here."
 
-AWS_SHARED_CREDENTIALS_FILE=os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+AWS_SHARED_CREDENTIALS_FILE = os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+
 
 def construction_wrapper(
     user_query: str, chat_session_id: UUID, client: SupaClient
@@ -96,7 +102,9 @@ def edit_wrapper(
         return None
 
 
-def setup_deployment_action(user_id: UUID, chat_session_id: UUID) -> DeployTFConfigAction:
+def setup_deployment_action(
+    user_id: UUID, chat_session_id: UUID
+) -> DeployTFConfigAction:
     """
     Sets up and returns a deployment action for usage.
     """
@@ -138,7 +146,9 @@ def destroy_wrapper(user_id: UUID, chat_session_id: UUID):
 
     response = action.destroy()
 
-    SupaClient(user_id).update_chat_session_state(chat_session_id, ChatSessionState.QUERIED_AND_DEPLOYABLE)
+    SupaClient(user_id).update_chat_session_state(
+        chat_session_id, ChatSessionState.QUERIED_AND_DEPLOYABLE
+    )
 
     dir_path = os.path.join("include/data/", str(chat_session_id))
     if os.path.exists(dir_path):
@@ -182,14 +192,19 @@ def handle_irrelevant_query(query: str, client: AbstractLLMClient) -> str:
 
         return client.query(new_prompt, "", is_json=False, temperature=0.5)
 
-def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaClient) -> str:
+
+def point_execution_wrapper(
+    user_query: str, user_id: UUID, supa_client: SupaClient
+) -> str:
     """
     A wrapper around point executions. Check the ExecutionAction class for more info.
     """
 
     secret, access, region = supa_client.get_user_aws_preferences()
 
-    def append_creds_to_file(aws_file: str, secret: str, access: str, region: str, mode: str="a"):
+    def append_creds_to_file(
+        aws_file: str, secret: str, access: str, region: str, mode: str = "a"
+    ):
         with open(aws_file, mode, encoding="utf8") as fpw:
             if mode == "a":
                 fpw.write("\n")
@@ -201,13 +216,16 @@ def point_execution_wrapper(user_query: str, user_id: UUID, supa_client: SupaCli
         with open(AWS_SHARED_CREDENTIALS_FILE, "r", encoding="utf8") as fp:
             creds = fp.read()
             if str(user_id) not in creds:
-                append_creds_to_file(AWS_SHARED_CREDENTIALS_FILE, secret, access, region)
+                append_creds_to_file(
+                    AWS_SHARED_CREDENTIALS_FILE, secret, access, region
+                )
     else:
         append_creds_to_file(AWS_SHARED_CREDENTIALS_FILE, secret, access, region, "w")
 
     action = ExecutionAction(str(user_id))
 
     return action.trigger_action(user_query)
+
 
 def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     """
@@ -228,9 +246,15 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
 
     state = supa_client.get_chat_session_state(chat_session_id)
     execution_action = ExecutionAction(str(user_id))
-    if state == ChatSessionState.DEPLOYMENT_SUCCEEDED or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS or execution_action.is_point_execution(memory_powered_query):
+    if (
+        state == ChatSessionState.DEPLOYMENT_SUCCEEDED
+        or state == ChatSessionState.DEPLOYMENT_IN_PROGRESS
+        or execution_action.is_point_execution(memory_powered_query)
+    ):
         try:
-            response = point_execution_wrapper(memory_powered_query, user_id, supa_client)
+            response = point_execution_wrapper(
+                memory_powered_query, user_id, supa_client
+            )
             supa_client.add_chat(chat_session_id, user_query, response)
 
             return response

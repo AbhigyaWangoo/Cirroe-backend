@@ -172,9 +172,9 @@ class DeployTFConfigAction(base.AbstractAction):
 
         # Setting credentials
         secret, access, region = self.state_manager.get_user_aws_preferences()
-        os.environ['AWS_SECRET_ACCESS_KEY'] = secret
-        os.environ['AWS_ACCESS_KEY_ID'] = access
-        os.environ['AWS_DEFAULT_REGION'] = region
+        os.environ["AWS_SECRET_ACCESS_KEY"] = secret
+        os.environ["AWS_ACCESS_KEY_ID"] = access
+        os.environ["AWS_DEFAULT_REGION"] = region
 
         tf.init()
 
@@ -188,12 +188,15 @@ class DeployTFConfigAction(base.AbstractAction):
 
         memory = self.state_manager.get_memory_str(self.chat_session_id, None)
 
-        with open(BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, "r", encoding="utf8") as fp:
+        with open(
+            BASE_PROMPT_PATH + REQUEST_DEPLOYMENT_INFO_PROMPT, "r", encoding="utf8"
+        ) as fp:
             sys_prompt = fp.read()
             sys_prompt = sys_prompt.format(
                 self.user_config.template,
-                json.dumps(', '.join(list(self.diagnoser.logs_cache))),
-                memory)
+                json.dumps(", ".join(list(self.diagnoser.logs_cache))),
+                memory,
+            )
             response = self.claude_client.query(sys_prompt, "", False, temperature=0.3)
 
         self.state_manager.update_chat_session_state(
@@ -260,8 +263,8 @@ class DeployTFConfigAction(base.AbstractAction):
 
     def return_success_msg(self) -> str:
         """
-        Returns a success message from the class stack. It should 
-        explain to the user how to properly use the infra they just 
+        Returns a success message from the class stack. It should
+        explain to the user how to properly use the infra they just
         deployed.
         """
 
@@ -302,7 +305,9 @@ class DeployTFConfigAction(base.AbstractAction):
                 if state == ChatSessionState.DEPLOYMENT_SUCCEEDED:
                     self.diagnoser.logs_cache.clear()
                     self.user_config = new_stack
-                    self.state_manager.edit_entire_tf_config(self.chat_session_id, new_stack)
+                    self.state_manager.edit_entire_tf_config(
+                        self.chat_session_id, new_stack
+                    )
 
                     return self.return_success_msg()
 

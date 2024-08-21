@@ -64,10 +64,7 @@ class ConstructTFConfigAction(base.AbstractAction):
                 self.test_client = self.claude_client
 
             tf_template = self.claude_client.query(
-                self.get_construction_prompt(input),
-                "",
-                False,
-                temperature=0.8
+                self.get_construction_prompt(input), "", False, temperature=0.8
             )
         except Exception as e:
             print(f"Couldn't extract config because of {e}. Retrying...")

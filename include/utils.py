@@ -5,6 +5,7 @@ import hashlib
 BASE_PROMPT_PATH = "include/prompts/"
 QUERY_CLASSIFIERS_BASE = "query_classifiers/"
 
+
 def prompt_with_file(
     filepath: str, prompt: str, client: AbstractLLMClient, **extra_options
 ) -> str:
