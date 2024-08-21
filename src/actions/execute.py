@@ -184,7 +184,7 @@ class ExecutionAction(base.AbstractAction):
             sys_prompt = fp.read()
             prompt = sys_prompt.format(user_query)
 
-            response = self.gpt_client.query(prompt)
+            response = self.claude_client.query(prompt, "", False)
             classification_match = re.search(r'<classification>(true|false)</classification>', response)
 
             if classification_match:

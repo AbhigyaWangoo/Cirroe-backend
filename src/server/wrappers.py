@@ -219,7 +219,6 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
     supa_client = SupaClient(user_id)
     # client = GPTClient()
     llm_client = ClaudeClient()
-    config = None
 
     can_query = supa_client.user_can_query()
     if not can_query:
@@ -240,39 +239,8 @@ def query_wrapper(user_query: str, user_id: UUID, chat_session_id: UUID) -> str:
             print("Point execution failed")
         except CredentialsNotProvidedException:
             return CREDENTIALS_NOT_PROVIDED
-
-    need_to_construct=True
-    try:
-        config = supa_client.get_tf_config(chat_session_id)
-        if len(config.template) > 0:
-            need_to_construct = False
-    except TFConfigDNEException:
-        # determine the type of query
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + CONSTRUCT_OR_OTHER_PROMPT, 
-            memory_powered_query, 
-            llm_client,
-            is_json=False
-        )
-        need_to_construct = response.lower() == "true"
-
-    if need_to_construct:
-        # if never been queried before, only then can this be a construction action
-        response = construction_wrapper(user_query, chat_session_id, supa_client)
     else:
-        response = prompt_with_file(
-            BASE_PROMPT_PATH + QUERY_CLASSIFIERS_BASE + EDIT_OR_OTHER_PROMPT, 
-            memory_powered_query, 
-            llm_client,
-            is_json=False
-        )
-        need_to_edit = response.lower() == "true"
-
-        if need_to_edit:
-            # The config def should exist here.
-            response = edit_wrapper(memory_powered_query, chat_session_id, supa_client, config)
-        else:
-            response = handle_irrelevant_query(memory_powered_query, llm_client)
+        response = handle_irrelevant_query(memory_powered_query, llm_client)
 
     supa_client.add_chat(chat_session_id, user_query, response)
 
