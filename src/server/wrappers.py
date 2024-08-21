@@ -22,7 +22,7 @@ EDIT_OR_OTHER_PROMPT = "edit_or_other.txt"
 IRRELEVANT_QUERY_HANDLER = "handle_irrelevant_query.txt"
 
 FILL_UP_MORE_CREDITS = "Refill credits to continue."
-CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info."
+CREDENTIALS_NOT_PROVIDED = "Looks like you're missing some auth credentials. Please fill them in properly, or contact support for more info. Just navigate to the hamburger menu above, click \"Set AWS Credentials\", and fill in your AWS secret and access keys."
 NOTHING_TO_DEPLOY = "User config dne. Setup deployment action shouldn't work here."
 
 AWS_SHARED_CREDENTIALS_FILE=os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
