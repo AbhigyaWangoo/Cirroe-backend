@@ -1,20 +1,14 @@
-from src.actions.construct import ConstructTFConfigAction
 import subprocess
 from src.actions.execute import ExecutionAction
 from uuid import UUID
-from src.actions.edit import EditTFConfigAction
-import shutil
-from src.actions.deploy import DeployTFConfigAction, ERROR_RESPONSE
 from src.db.supa import (
     SupaClient,
     ChatSessionState,
-    TFConfigDNEException,
     CredentialsNotProvidedException,
 )
-from src.model.stack import TerraformConfig
 import os
 
-from include.utils import BASE_PROMPT_PATH, prompt_with_file, QUERY_CLASSIFIERS_BASE
+from include.utils import BASE_PROMPT_PATH
 from include.llm.claude import ClaudeClient
 from include.llm.base import AbstractLLMClient
 
@@ -31,153 +25,6 @@ CREDENTIALS_NOT_PROVIDED = 'Looks like you\'re missing some auth credentials. Pl
 NOTHING_TO_DEPLOY = "User config dne. Setup deployment action shouldn't work here."
 
 AWS_SHARED_CREDENTIALS_FILE = os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
-
-
-def construction_wrapper(
-    user_query: str, chat_session_id: UUID, client: SupaClient
-) -> str:
-    """
-    Constructs a terraform config based off user query. Persists config in supabase and updates
-    chat session state. Returns qualitative response for user.
-
-    todo Caches ChatSession config in mem and disk for further use.
-    Caches user supa client connection in mem.
-    """
-    action = ConstructTFConfigAction()
-
-    try:
-        action_response = action.trigger_action(user_query)
-        stack = action.tf_config
-
-        client.edit_entire_tf_config(chat_session_id, stack)
-
-        # TODO add cloudformation stack linter to see if
-        # the stack is deployable, and update the state as such
-        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
-
-        return action_response
-    except Exception as e:
-        print(
-            f"Failed to construct tf config for user. \nUser request: {user_query} \n\nError: {e}"
-        )
-        client.update_chat_session_state(
-            chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
-        )
-
-
-def edit_wrapper(
-    user_query: str, chat_session_id: UUID, client: SupaClient, config: TerraformConfig
-) -> str | None:
-    """
-    Using the user query, and the cf stack retrieved from supabase with the chat
-    session id, edits the cf stack and responds qualitativly to the user.
-
-    also, updates state and persists chat stack.
-    """
-
-    try:
-        # 2. construct edit action
-        action = EditTFConfigAction(config)
-
-        # 3. trigger action
-        action_result = action.trigger_action(user_query)
-        new_config = action.new_config
-        print(new_config)
-
-        # 4. persist new stack in supa
-        client.edit_entire_tf_config(chat_session_id, new_config)
-        client.update_chat_session_state(chat_session_id, ChatSessionState.QUERIED)
-
-        return action_result
-    except TFConfigDNEException:
-        print("Stack dne yet. Edit wrapper incorrect.")
-        return None
-    except Exception as e:
-        print(
-            f"Failed to edit cf stack for user. \nUser request: {user_query} \n\nError: {e}"
-        )
-        client.update_chat_session_state(
-            chat_session_id, ChatSessionState.QUERIED_NOT_DEPLOYABLE
-        )
-        return None
-
-
-def setup_deployment_action(
-    user_id: UUID, chat_session_id: UUID
-) -> DeployTFConfigAction:
-    """
-    Sets up and returns a deployment action for usage.
-    """
-    supa_client = SupaClient(user_id)
-    user_config = supa_client.get_tf_config(chat_session_id)
-
-    dir_path = os.path.join("include/data/", str(chat_session_id))
-
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
-    file_path = os.path.join(dir_path, user_config.name)
-
-    if os.path.exists(file_path):
-        # We've aready tried this before. Construct the user config from that provided value
-        pass
-
-    with open(f"{file_path}.tf", "w", encoding="utf8") as file:
-        file.write(user_config.template)
-
-    deployment_action = DeployTFConfigAction(
-        user_config, chat_session_id, supa_client, dir_path
-    )
-
-    return deployment_action
-
-
-def destroy_wrapper(user_id: UUID, chat_session_id: UUID):
-    """
-    Wrapper around a destruction action. Allows us to destroy
-    a setup from the user's request.
-    """
-    try:
-        action = setup_deployment_action(user_id, chat_session_id)
-    except CredentialsNotProvidedException:
-        return CREDENTIALS_NOT_PROVIDED
-    except TFConfigDNEException:
-        return NOTHING_TO_DEPLOY
-
-    response = action.destroy()
-
-    SupaClient(user_id).update_chat_session_state(
-        chat_session_id, ChatSessionState.QUERIED_AND_DEPLOYABLE
-    )
-
-    dir_path = os.path.join("include/data/", str(chat_session_id))
-    if os.path.exists(dir_path):
-        shutil.rmtree(dir_path)
-
-    return response
-
-
-def deploy_wrapper(user_id: UUID, chat_session_id: UUID) -> str:
-    """
-    A wrapper around the deployment action. Allows us to deploy a
-    cf stack from the user.
-    """
-    try:
-        deployment_action = setup_deployment_action(user_id, chat_session_id)
-    except CredentialsNotProvidedException:
-        return CREDENTIALS_NOT_PROVIDED
-    except TFConfigDNEException:
-        return NOTHING_TO_DEPLOY
-
-    # 2. Attempt deployment, return trigger_action response
-    response = deployment_action.trigger_action()
-
-    dir_path = os.path.join("include/data/", str(chat_session_id))
-    if response == ERROR_RESPONSE:
-        shutil.rmtree(dir_path)  # TODO fix this inna bit
-
-    return response
-
 
 def handle_irrelevant_query(query: str, client: AbstractLLMClient) -> str:
     """
