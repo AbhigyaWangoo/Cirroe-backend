@@ -32,7 +32,7 @@ USER_ID = "user_id"
 MEM_CACHE_LIMIT = 5
 
 # Cost enforcement
-CIRROE_CHAT_COST = 0.1
+CIRROE_CHAT_COST = 0.05
 
 
 class Operation(Enum):
