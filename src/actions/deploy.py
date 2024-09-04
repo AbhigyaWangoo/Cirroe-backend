@@ -217,6 +217,13 @@ class DeployTFConfigAction(base.AbstractAction):
 
         return DESTROY_SUCCESS
 
+    def does_maintain_cost_limiter(self) -> bool:
+        """
+        Returns true if the cost remains within the cost limiter set by the user.
+        """
+        # TODO implement
+        return False
+
     def deploy_config(self) -> Tuple[str, ChatSessionState]:
         """
         Deploys user's tf config into their account

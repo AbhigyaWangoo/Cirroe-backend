@@ -14,6 +14,7 @@ from typing import Tuple, List, Dict, Union
 # DB Column names
 TF_CONFIG_COL_NAME = "config"
 STATE_COL_NAME = "state"
+COST_LIMITER_COL_NAME = "cost_limiter"
 STACK_NAME_COL = "config_name"
 ID = "id"
 
@@ -203,6 +204,20 @@ class SupaClient:
         )
 
         return ChatSessionState[response.data[0][STATE_COL_NAME]]
+
+    def get_chat_session_cost_limiter(self, chat_session_id: UUID) -> float:
+        """
+        Get the cost limitation of a chat session
+        """
+
+        response = (
+            self.supabase.table(Table.CHAT_SESSIONS)
+            .select(COST_LIMITER_COL_NAME)
+            .eq(ID, chat_session_id)
+            .execute()
+        )
+
+        return response.data[0][COST_LIMITER_COL_NAME]
 
     def get_user_aws_preferences(self) -> Tuple[str, str, str]:
         """
